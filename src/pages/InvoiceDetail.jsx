@@ -58,7 +58,11 @@ export default function InvoiceDetail() {
     html2pdf().set({ margin: 0.5, filename: `Kwitansi-${payment.id}.pdf`, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'a5', orientation: 'landscape' } }).from(element).save()
   }
 
-  function getPublicLink() { return `${window.location.origin}/#/public-invoice/${encodeURIComponent(invoice.invoice_number)}` }
+  // --- PERBAIKAN LINK PUBLIC (TIDAK 404 LAGI) ---
+  function getPublicLink() {
+    const baseUrl = window.location.href.split('#')[0]; // Mengambil URL dasar (termasuk /zahrashop/)
+    return `${baseUrl}#/public-invoice/${encodeURIComponent(invoice.invoice_number)}`;
+  }
 
   function handleShareLink() {
     navigator.clipboard.writeText(getPublicLink())
@@ -165,7 +169,8 @@ export default function InvoiceDetail() {
         </div>
       </Modal>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+      {/* --- TOP BAR DENGAN CLASS DETAIL-HEADER (AGAR STICKY DI HP) --- */}
+      <div className="detail-header">
         <div>
           <Link to="/invoices" className="btn-back">&larr; Kembali</Link>
           <h1 style={{ margin: 0, fontSize: 24 }}>Detail Invoice</h1>
