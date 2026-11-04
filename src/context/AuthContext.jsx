@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useContext,
@@ -53,37 +54,74 @@ export function AuthProvider({ children }) {
     async function validateSession() {
       if (!session?.user?.id) {
         setProfile(null)
+        setAuthError('')
         setLoading(false)
         return
       }
 
       setLoading(true)
+      setAuthError('')
 
-      const { data, error } = await supabase.rpc(
-        'accept_team_invitation'
-      )
+      try {
+        const { data: existingProfile, error: profileError } =
+          await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle()
 
-      if (!active) return
+        if (!active) return
 
-      if (error || !data?.success || !data?.profile) {
-        const message =
-          error?.message || 'Akun ini belum memiliki akses ke Zahra Shop.'
+        if (profileError) {
+          throw profileError
+        }
 
-        setProfile(null)
-        setAuthError(
-          message.includes('Email ini belum mendapatkan undangan')
-            ? 'Email ini belum mendapatkan undangan dari Owner.'
-            : 'Akun ini belum memiliki akses ke Zahra Shop.'
+        if (existingProfile) {
+          setProfile(existingProfile)
+          setAuthError('')
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase.rpc(
+          'accept_team_invitation'
         )
 
-        await supabase.auth.signOut()
-        setLoading(false)
-        return
-      }
+        if (!active) return
 
-      setProfile(data.profile)
-      setAuthError('')
-      setLoading(false)
+        if (error || !data?.success || !data?.profile) {
+          const message = error?.message || ''
+
+          if (
+            message.includes('Email ini belum mendapatkan undangan') ||
+            message.includes('belum mendapatkan undangan')
+          ) {
+            setAuthError('Email ini belum mendapatkan undangan dari Owner.')
+            setProfile(null)
+            await supabase.auth.signOut()
+          } else {
+            console.error('Gagal menerima undangan:', error)
+            setAuthError(
+              'Gagal memverifikasi akses akun. Silakan coba lagi.'
+            )
+            setProfile(null)
+          }
+
+          setLoading(false)
+          return
+        }
+
+        setProfile(data.profile)
+        setAuthError('')
+        setLoading(false)
+      } catch (error) {
+        if (!active) return
+
+        console.error('Gagal memvalidasi sesi:', error)
+        setProfile(null)
+        setAuthError('Gagal memuat profil akun. Silakan coba lagi.')
+        setLoading(false)
+      }
     }
 
     validateSession()

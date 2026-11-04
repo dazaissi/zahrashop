@@ -1,9 +1,9 @@
-
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { logActivity } from '../lib/logger'
+import Select from '../components/ui/Select' // <-- IMPORT SELECT
 import {
   FaInfoCircle,
   FaUserShield,
@@ -13,6 +13,12 @@ import {
   FaSync,
 } from 'react-icons/fa'
 
+// Opsi untuk Dropdown Role
+const roleOptions = [
+  { value: 'admin', label: 'Admin / Kasir' },
+  { value: 'owner', label: 'Owner' }
+]
+
 export default function Team() {
   const { session, profile } = useAuth()
   const { showToast, showConfirm } = useUI()
@@ -20,15 +26,27 @@ export default function Team() {
   const [members, setMembers] = useState([])
   const [invites, setInvites] = useState([])
   const [email, setEmail] = useState('')
+  const [role, setRole] = useState('admin')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
 
+  const storeId = profile?.store_id || (
+    profile?.role?.toLowerCase() === 'owner'
+      ? profile?.id
+      : profile?.owner_id
+  )
+
   useEffect(() => {
-    fetchTeam()
-  }, [profile?.id])
+    if (profile?.id && storeId) {
+      fetchTeam()
+    } else if (profile?.id) {
+      setLoading(false)
+      showToast('Identitas toko tidak ditemukan.', 'error')
+    }
+  }, [profile?.id, storeId])
 
   async function fetchTeam() {
-    if (!profile?.id) return
+    if (!profile?.id || !storeId) return
 
     setLoading(true)
 
@@ -39,14 +57,14 @@ export default function Team() {
       ] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, business_name, email, role, created_at, owner_id')
-          .or(`id.eq.${profile.id},owner_id.eq.${profile.id}`)
+          .select('id, business_name, email, role, created_at, owner_id, store_id')
+          .eq('store_id', storeId)
           .order('created_at', { ascending: true }),
 
         supabase
           .from('team_invites')
           .select('id, email, role, created_at, accepted_at')
-          .eq('owner_id', profile.id)
+          .eq('owner_id', storeId)
           .order('created_at', { ascending: false }),
       ])
 
@@ -67,9 +85,18 @@ export default function Team() {
     e.preventDefault()
 
     const normalizedEmail = email.trim().toLowerCase()
+    const normalizedRole = role.toLowerCase()
 
     if (!normalizedEmail) {
-      return showToast('Masukkan email karyawan terlebih dahulu.', 'error')
+      return showToast('Masukkan email terlebih dahulu.', 'error')
+    }
+
+    if (!storeId) {
+      return showToast('Identitas toko tidak ditemukan.', 'error')
+    }
+
+    if (!['admin', 'owner'].includes(normalizedRole)) {
+      return showToast('Role undangan tidak valid.', 'error')
     }
 
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -79,7 +106,7 @@ export default function Team() {
     }
 
     if (normalizedEmail === session?.user?.email?.toLowerCase()) {
-      return showToast('Email Owner tidak perlu diundang.', 'error')
+      return showToast('Email akun sendiri tidak perlu diundang.', 'error')
     }
 
     const existingMember = members.some(
@@ -106,9 +133,9 @@ export default function Team() {
       const { error } = await supabase
         .from('team_invites')
         .insert({
-          owner_id: profile.id,
+          owner_id: storeId,
           email: normalizedEmail,
-          role: 'admin',
+          role: normalizedRole,
           invited_by: session.user.id,
         })
 
@@ -117,10 +144,11 @@ export default function Team() {
       await logActivity(
         session.user.id,
         'UNDANG_KARYAWAN',
-        `Mengundang ${normalizedEmail} sebagai Admin`
+        `Mengundang ${normalizedEmail} sebagai ${normalizedRole === 'owner' ? 'Owner' : 'Admin'}`
       )
 
       setEmail('')
+      setRole('admin')
       showToast('Undangan berhasil dibuat.', 'success')
       await fetchTeam()
     } catch (error) {
@@ -149,7 +177,7 @@ export default function Team() {
         .from('team_invites')
         .delete()
         .eq('id', invite.id)
-        .eq('owner_id', profile.id)
+        .eq('owner_id', storeId)
 
       if (error) throw error
 
@@ -249,7 +277,7 @@ export default function Team() {
 
         <div>
           <h4 style={{ margin: '0 0 4px', color: 'var(--text-main)' }}>
-            Cara Menambahkan Karyawan
+            Cara Menambahkan Anggota Tim
           </h4>
 
           <p
@@ -260,15 +288,16 @@ export default function Team() {
               lineHeight: 1.5,
             }}
           >
-            Masukkan email Google karyawan yang ingin diundang. Karyawan
-            harus masuk menggunakan email yang sama agar dapat bergabung
-            sebagai Admin di Zahra Shop.
+            Masukkan email Google orang yang ingin diundang.
+            Pilih Owner untuk memberikan akses penuh ke Zahra Shop,
+            atau Admin untuk memberikan akses sebagai kasir.
+            Penerima harus masuk menggunakan email yang sama.
           </p>
         </div>
       </div>
 
       <div className="card" style={{ padding: 20, marginBottom: 24 }}>
-        <h3 style={{ marginTop: 0 }}>Undang Karyawan Baru</h3>
+        <h3 style={{ marginTop: 0 }}>Undang Anggota Baru</h3>
 
         <form
           onSubmit={handleInvite}
@@ -278,12 +307,12 @@ export default function Team() {
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ flex: 2, minWidth: 220 }}>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="Masukkan email Google karyawan"
+              placeholder="Masukkan email Google"
               required
               disabled={sending}
               style={{
@@ -294,6 +323,17 @@ export default function Team() {
                 background: 'var(--input-bg, var(--card-bg))',
                 color: 'var(--text-main)',
               }}
+            />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 140 }}>
+            {/* MENGGUNAKAN SELECT COMPONENT */}
+            <Select
+              options={roleOptions}
+              value={role}
+              onChange={setRole}
+              placeholder="Pilih Role"
+              disabled={sending}
             />
           </div>
 
@@ -316,7 +356,7 @@ export default function Team() {
             }}
           >
             <FaEnvelope />
-            {sending ? 'Memproses...' : 'Undang Admin'}
+            {sending ? 'Memproses...' : 'Kirim Undangan'}
           </button>
         </form>
 
@@ -327,7 +367,7 @@ export default function Team() {
             marginBottom: 0,
           }}
         >
-          Role yang diberikan kepada karyawan adalah Admin (Kasir).
+          Owner memiliki akses penuh ke toko. Admin memiliki akses operasional sebagai kasir.
         </p>
       </div>
 
@@ -349,7 +389,7 @@ export default function Team() {
 
             <tbody>
               {members.map(member => {
-                const isSelf = member.id === session.user.id
+                const isSelf = member.id === session?.user?.id
                 const roleColor = getRoleColor(member.role)
 
                 return (
@@ -435,10 +475,23 @@ export default function Team() {
               {pendingInvites.map(invite => (
                 <tr key={invite.id}>
                   <td>{invite.email}</td>
-                  <td>Admin</td>
+
+                  <td>
+                    <span
+                      className="badge"
+                      style={{
+                        background: getRoleColor(invite.role).bg,
+                        color: getRoleColor(invite.role).text,
+                      }}
+                    >
+                      {invite.role}
+                    </span>
+                  </td>
+
                   <td>
                     {new Date(invite.created_at).toLocaleDateString('id-ID')}
                   </td>
+
                   <td>
                     <span
                       className="badge"
@@ -450,6 +503,7 @@ export default function Team() {
                       Menunggu
                     </span>
                   </td>
+
                   <td>
                     <button
                       onClick={() => handleCancelInvite(invite)}

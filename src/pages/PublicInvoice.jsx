@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
@@ -13,7 +12,7 @@ import {
 } from 'react-icons/fa'
 
 export default function PublicInvoice() {
-  const { number, token } = useParams()
+  const { invoiceNumber, token } = useParams()
 
   const [invoice, setInvoice] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -35,11 +34,11 @@ export default function PublicInvoice() {
       setErrorMessage('')
 
       try {
-        if (!number || !token || !isValidUUID(token)) {
+        if (!invoiceNumber || !token || !isValidUUID(token)) {
           throw new Error('Link invoice tidak valid.')
         }
 
-        const decodedNumber = decodeURIComponent(number)
+        const decodedNumber = decodeURIComponent(invoiceNumber)
 
         // Validasi invoice melalui RPC, bukan SELECT langsung ke tabel
         const { data, error } = await supabase.rpc(
@@ -90,7 +89,7 @@ export default function PublicInvoice() {
     return () => {
       isMounted = false
     }
-  }, [number, token])
+  }, [invoiceNumber, token])
 
   // LOADING
   if (loading) {

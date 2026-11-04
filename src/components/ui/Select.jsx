@@ -22,7 +22,15 @@ export default function Select({ options, value, onChange, placeholder = '-- Pil
 
   useEffect(() => {
     if (isOpen) {
-      const handleScroll = () => setIsOpen(false)
+      const handleScroll = (event) => {
+        // JIKA YANG DI-SCROLL ADALAH MENU DROPDOWN ITU SENDIRI, ABAIKAN
+        if (menuRef.current && menuRef.current.contains(event.target)) {
+          return
+        }
+        // Jika halaman luar yang di-scroll, tutup dropdown
+        setIsOpen(false)
+      }
+      
       window.addEventListener('scroll', handleScroll, true)
       return () => window.removeEventListener('scroll', handleScroll, true)
     }
@@ -31,7 +39,17 @@ export default function Select({ options, value, onChange, placeholder = '-- Pil
   const handleToggle = () => {
     if (!isOpen && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect()
-      setCoords({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+      
+      // Cek apakah space di bawah cukup, kalau tidak buka ke atas
+      const spaceBelow = window.innerHeight - rect.bottom
+      const menuHeight = Math.min(options.length * 46, 250) // Estimasi tinggi menu
+      
+      let topPosition = rect.bottom + 4
+      if (spaceBelow < menuHeight && rect.top > menuHeight) {
+        topPosition = rect.top - menuHeight - 4
+      }
+
+      setCoords({ top: topPosition, left: rect.left, width: rect.width })
     }
     setIsOpen(!isOpen)
   }
@@ -54,8 +72,10 @@ export default function Select({ options, value, onChange, placeholder = '-- Pil
           ...style
         }}
       >
-        {selectedOption ? selectedOption.label : placeholder}
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '8px' }}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
       </div>
@@ -70,7 +90,9 @@ export default function Select({ options, value, onChange, placeholder = '-- Pil
             left: coords.left, 
             minWidth: coords.width, 
             width: 'max-content', 
-            maxWidth: '350px'
+            maxWidth: '350px',
+            // Tambahkan sedikit penyesuaian agar batas kanan tidak keluar layar
+            ...(coords.left + coords.width > window.innerWidth - 20 ? { left: 'auto', right: 20 } : {})
           }}
         >
           {options.map((opt) => (

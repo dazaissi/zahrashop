@@ -28,11 +28,7 @@ export default function App() {
           {/* Halaman Login */}
           <Route path="/login" element={<Login />} />
 
-          {/* Invoice Publik */}
-          <Route
-            path="/public-invoice/:number/:token"
-            element={<PublicInvoice />}
-          />
+        <Route path="/public-invoice/:invoiceNumber/:token" element={<PublicInvoice />} />
 
           {/* Halaman yang dapat diakses Owner dan Admin */}
           <Route

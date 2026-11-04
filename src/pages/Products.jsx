@@ -1,11 +1,9 @@
-
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { formatRupiah } from '../lib/format'
 import BarcodeScanner from '../components/BarcodeScanner'
-
 import {
   FaBoxOpen,
   FaEdit,
@@ -14,9 +12,58 @@ import {
   FaMinusCircle,
   FaFileExcel
 } from 'react-icons/fa'
-
 import Button from '../components/ui/Button'
+import Select from '../components/ui/Select' // <-- IMPORT SELECT COMPONENT
 import * as XLSX from 'xlsx'
+
+const NET_WEIGHT_UNITS = [
+  { value: 'g', label: 'Gram (g)' },
+  { value: 'kg', label: 'Kilogram (kg)' },
+  { value: 'ml', label: 'Mililiter (ml)' },
+  { value: 'L', label: 'Liter (L)' }
+]
+
+const PROVIDERS = [
+  { value: 'Telkomsel', label: 'Telkomsel', short: 'TSEL', color: '#e31e26' },
+  { value: 'Indosat', label: 'Indosat', short: 'IM3', color: '#f5c400' },
+  { value: 'XL', label: 'XL', short: 'XL', color: '#1684d8' },
+  { value: 'AXIS', label: 'AXIS', short: 'AXIS', color: '#7136a8' },
+  { value: 'Tri', label: 'Tri', short: '3', color: '#ed1c24' },
+  { value: 'Smartfren', label: 'Smartfren', short: 'SF', color: '#e52429' },
+  { value: 'PLN', label: 'PLN', short: 'PLN', color: '#0875bd' },
+  { value: 'DANA', label: 'DANA', short: 'DANA', color: '#118eea' },
+  { value: 'GoPay', label: 'GoPay', short: 'GOPAY', color: '#00a5cf' },
+  { value: 'OVO', label: 'OVO', short: 'OVO', color: '#4c2a86' },
+  { value: 'ShopeePay', label: 'ShopeePay', short: 'SPAY', color: '#ee4d2d' }
+]
+
+function ProviderBadge({ provider, size = 42 }) {
+  const item = PROVIDERS.find(p => p.value === provider)
+  const color = item?.color || '#64748b'
+  const label = item?.short || provider?.slice(0, 5).toUpperCase() || '?'
+
+  return (
+    <div
+      title={provider || 'Provider'}
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        borderRadius: 10,
+        background: color,
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 800,
+        fontSize: label.length > 4 ? 10 : 13,
+        letterSpacing: 0.3
+      }}
+    >
+      {label}
+    </div>
+  )
+}
 
 export default function Products() {
   const { session } = useAuth()
@@ -34,8 +81,13 @@ export default function Products() {
   const [cost, setCost] = useState('')
   const [stock, setStock] = useState('')
   const [minStock, setMinStock] = useState('')
+  const [netWeight, setNetWeight] = useState('')
+  const [netWeightUnit, setNetWeightUnit] = useState('g')
+  const [productType, setProductType] = useState('physical')
+  const [providerName, setProviderName] = useState('')
 
   const userId = session?.user?.id
+  const isDigital = productType === 'digital'
 
   useEffect(() => {
     if (userId) fetchProducts()
@@ -72,6 +124,10 @@ export default function Products() {
     setCost('')
     setStock('')
     setMinStock('')
+    setNetWeight('')
+    setNetWeightUnit('g')
+    setProductType('physical')
+    setProviderName('')
   }
 
   function editProduct(product) {
@@ -82,6 +138,10 @@ export default function Products() {
     setCost(product.cost)
     setStock(String(product.stock ?? 0))
     setMinStock(String(product.min_stock ?? 0))
+    setNetWeight(product.net_weight ?? '')
+    setNetWeightUnit(product.net_weight_unit || 'g')
+    setProductType(product.product_type || 'physical')
+    setProviderName(product.provider_name || '')
 
     window.scrollTo({
       top: 0,
@@ -100,11 +160,17 @@ export default function Products() {
     const productName = name.trim()
     const productPrice = Number(price)
     const productCost = cost === '' ? 0 : Number(cost)
-    const initialStock = Number(stock)
-    const minimumStock = minStock === '' ? 0 : Number(minStock)
+    const initialStock = isDigital ? 0 : Number(stock)
+    const minimumStock = isDigital ? 0 : (minStock === '' ? 0 : Number(minStock))
+    const weightValue = isDigital || netWeight === '' ? null : Number(netWeight)
 
     if (!productName) {
       showToast('Nama produk wajib diisi.', 'error')
+      return
+    }
+
+    if (isDigital && !providerName) {
+      showToast('Pilih provider produk digital.', 'error')
       return
     }
 
@@ -121,7 +187,16 @@ export default function Products() {
     }
 
     if (
+      weightValue !== null &&
+      (!Number.isFinite(weightValue) || weightValue <= 0)
+    ) {
+      showToast('Netto harus lebih dari 0.', 'error')
+      return
+    }
+
+    if (
       !id &&
+      !isDigital &&
       (!Number.isInteger(initialStock) || initialStock < 0)
     ) {
       showToast('Stok awal harus berupa bilangan bulat minimal 0.', 'error')
@@ -136,12 +211,15 @@ export default function Products() {
         sku: sku.trim() || null,
         price: productPrice,
         cost: productCost,
+        product_type: productType,
+        provider_name: isDigital ? providerName : null,
         min_stock: minimumStock,
+        net_weight: weightValue,
+        net_weight_unit: weightValue !== null ? netWeightUnit : null,
         user_id: userId
       }
 
       if (id) {
-        // Edit produk tidak boleh mengubah stok secara langsung.
         const { error } = await supabase
           .from('products')
           .update(payload)
@@ -152,7 +230,6 @@ export default function Products() {
 
         showToast('Produk berhasil diperbarui!', 'success')
       } else {
-        // Tambahkan produk baru.
         const { data: newProduct, error } = await supabase
           .from('products')
           .insert([{
@@ -164,8 +241,7 @@ export default function Products() {
 
         if (error) throw error
 
-        // Catat stok awal jika jumlahnya lebih dari 0.
-        if (initialStock > 0) {
+        if (!isDigital && initialStock > 0) {
           const { error: movementError } = await supabase
             .from('stock_movements')
             .insert([{
@@ -176,7 +252,6 @@ export default function Products() {
             }])
 
           if (movementError) {
-            // Coba batalkan produk jika histori gagal dicatat.
             const { error: rollbackError } = await supabase
               .from('products')
               .delete()
@@ -209,10 +284,7 @@ export default function Products() {
   }
 
   async function handleStockChange(product, isAdding) {
-    if (!userId) {
-      showToast('Sesi login tidak ditemukan.', 'error')
-      return
-    }
+    if (!userId || product.product_type === 'digital') return
 
     const label = isAdding ? 'masuk' : 'keluar/rusak'
 
@@ -254,14 +326,11 @@ export default function Products() {
     }
 
     const oldStock = Number(product.stock)
-    const newStock = isAdding
-      ? oldStock + qty
-      : oldStock - qty
+    const newStock = isAdding ? oldStock + qty : oldStock - qty
 
     setIsSubmitting(true)
 
     try {
-      // Update stok dengan pengecekan stok sebelumnya.
       const { data: updated, error } = await supabase
         .from('products')
         .update({ stock: newStock })
@@ -278,20 +347,16 @@ export default function Products() {
         )
       }
 
-      // Catat histori pergerakan stok.
       const { error: movementError } = await supabase
         .from('stock_movements')
         .insert([{
           user_id: userId,
           product_id: product.id,
           change: isAdding ? qty : -qty,
-          reason: isAdding
-            ? 'restock'
-            : `adjustment: ${reason.trim()}`
+          reason: isAdding ? 'restock' : `adjustment: ${reason.trim()}`
         }])
 
       if (movementError) {
-        // Rollback stok jika histori gagal disimpan.
         const { error: rollbackError } = await supabase
           .from('products')
           .update({ stock: oldStock })
@@ -309,11 +374,7 @@ export default function Products() {
         throw movementError
       }
 
-      showToast(
-        `Stok ${product.name} berhasil diperbarui!`,
-        'success'
-      )
-
+      showToast(`Stok ${product.name} berhasil diperbarui!`, 'success')
       await fetchProducts()
 
     } catch (error) {
@@ -375,7 +436,6 @@ export default function Products() {
 
     try {
       const buffer = await file.arrayBuffer()
-
       const workbook = XLSX.read(buffer, { type: 'array' })
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const rows = XLSX.utils.sheet_to_json(worksheet)
@@ -384,18 +444,38 @@ export default function Products() {
         throw new Error('File Excel kosong atau format salah.')
       }
 
-      const payload = rows.map((row, index) => {
+      const insertedPayload = rows.map((row, index) => {
+        const typeValue = String(row['Jenis Produk'] || 'physical').toLowerCase().trim()
+        const type = ['digital', 'produk digital'].includes(typeValue)
+          ? 'digital'
+          : 'physical'
+
         const productName = String(
           row['Nama Produk'] ?? row['nama'] ?? ''
         ).trim()
 
         const productPrice = Number(row['Harga Jual'] ?? 0)
         const productCost = Number(row['Harga Modal'] ?? 0)
-        const productStock = Number(row['Stok'] ?? 0)
-        const minimumStock = Number(row['Min Stok'] ?? 0)
+        const productStock = type === 'digital' ? 0 : Number(row['Stok'] ?? 0)
+        const minimumStock = type === 'digital' ? 0 : Number(row['Min Stok'] ?? 0)
+
+        const provider = String(row['Provider'] || '').trim()
+
+        const rawWeight = row['Netto'] ?? row['Berat'] ?? ''
+        const weightValue = type === 'digital' || rawWeight === '' || rawWeight === null
+          ? null
+          : Number(rawWeight)
+
+        const weightUnit = String(
+          row['Satuan Netto'] ?? row['Satuan'] ?? ''
+        ).trim()
 
         if (!productName) {
           throw new Error(`Nama produk pada baris ${index + 2} kosong.`)
+        }
+
+        if (type === 'digital' && !PROVIDERS.some(p => p.value.toLowerCase() === provider.toLowerCase())) {
+          throw new Error(`Provider tidak valid pada baris ${index + 2}.`)
         }
 
         if (
@@ -411,6 +491,15 @@ export default function Products() {
           throw new Error(`Data tidak valid pada baris ${index + 2}.`)
         }
 
+        if (
+          weightValue !== null &&
+          (!Number.isFinite(weightValue) ||
+            weightValue <= 0 ||
+            !NET_WEIGHT_UNITS.some(unit => unit.value === weightUnit))
+        ) {
+          throw new Error(`Netto atau satuan tidak valid pada baris ${index + 2}.`)
+        }
+
         return {
           user_id: userId,
           name: productName,
@@ -418,14 +507,17 @@ export default function Products() {
           price: productPrice,
           cost: productCost,
           stock: productStock,
-          min_stock: minimumStock
+          min_stock: minimumStock,
+          product_type: type,
+          provider_name: type === 'digital' ? provider : null,
+          net_weight: weightValue,
+          net_weight_unit: weightValue !== null ? weightUnit : null
         }
       })
 
-      // Simpan produk dan ambil ID yang berhasil dibuat.
       const { data: insertedProducts, error } = await supabase
         .from('products')
-        .insert(payload)
+        .insert(insertedPayload)
         .select('id, stock')
 
       if (error) throw error
@@ -445,7 +537,6 @@ export default function Products() {
           .insert(movements)
 
         if (movementError) {
-          // Coba batalkan seluruh produk hasil import.
           const ids = insertedProducts.map(product => product.id)
 
           const { error: rollbackError } = await supabase
@@ -539,22 +630,64 @@ export default function Products() {
         />
       </div>
 
-      <div
-        className="card"
-        style={{ marginBottom: 24, maxWidth: 700 }}
-      >
+      <div className="card" style={{ marginBottom: 24, maxWidth: 700 }}>
         <h3>{id ? 'Edit Produk' : 'Tambah Produk Baru'}</h3>
 
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: 'grid', gap: 12 }}
-        >
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
+          <div>
+            <label>Jenis Produk</label>
+            {/* MENGGUNAKAN SELECT COMPONENT */}
+            <Select
+              options={[
+                { value: 'physical', label: 'Barang Fisik' },
+                { value: 'digital', label: 'Produk Digital' }
+              ]}
+              value={productType}
+              onChange={value => {
+                setProductType(value)
+                if (value === 'digital') {
+                  setStock('0')
+                  setMinStock('0')
+                  setNetWeight('')
+                } else if (!id) {
+                  setStock('')
+                }
+              }}
+              disabled={!!id}
+            />
+            {id && (
+              <small style={{ color: 'var(--text-muted)' }}>
+                Jenis produk tidak dapat diubah setelah produk dibuat.
+              </small>
+            )}
+          </div>
+
           <input
             required
             placeholder="Nama Produk *"
             value={name}
             onChange={e => setName(e.target.value)}
           />
+
+          {isDigital && (
+            <div>
+              <label>Provider *</label>
+              {/* MENGGUNAKAN SELECT COMPONENT */}
+              <Select
+                options={PROVIDERS.map(p => ({ value: p.value, label: p.label }))}
+                value={providerName}
+                onChange={setProviderName}
+                placeholder="Pilih Provider"
+              />
+
+              {providerName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                  <ProviderBadge provider={providerName} size={46} />
+                  <span style={{ fontWeight: 600 }}>{providerName}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 8 }}>
             <input
@@ -564,21 +697,23 @@ export default function Products() {
               style={{ flex: 1, minWidth: 0 }}
             />
 
-            <button
-              type="button"
-              onClick={() => setShowScanner(true)}
-              className="btn-primary"
-              disabled={isSubmitting}
-              style={{
-                padding: '0 24px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <FaBarcode size={18} /> Scan
-            </button>
+            {!isDigital && (
+              <button
+                type="button"
+                onClick={() => setShowScanner(true)}
+                className="btn-primary"
+                disabled={isSubmitting}
+                style={{
+                  padding: '0 24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <FaBarcode size={18} /> Scan
+              </button>
+            )}
           </div>
 
           <div
@@ -608,49 +743,85 @@ export default function Products() {
             />
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: 12
-            }}
-          >
-            <div>
-              <input
-                required
-                type="number"
-                min="0"
-                step="1"
-                placeholder="Stok Saat Ini *"
-                value={stock}
-                onChange={e => setStock(e.target.value)}
-                disabled={!!id}
-                style={{ width: '100%' }}
-              />
+          {!isDigital && (
+            <>
+              <div>
+                <label>Netto / Berat Bersih</label>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 130px',
+                    gap: 12
+                  }}
+                >
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    placeholder="Contoh: 250"
+                    value={netWeight}
+                    onChange={e => setNetWeight(e.target.value)}
+                  />
 
-              {id && (
+                  {/* MENGGUNAKAN SELECT COMPONENT */}
+                  <Select
+                    options={NET_WEIGHT_UNITS.map(u => ({ value: u.value, label: u.label }))}
+                    value={netWeightUnit}
+                    onChange={setNetWeightUnit}
+                  />
+                </div>
                 <small style={{ color: 'var(--text-muted)' }}>
-                  Gunakan tombol + Stok atau - Stok untuk mengubah jumlah.
+                  Opsional. Kosongkan jika produk tidak memiliki informasi netto.
                 </small>
-              )}
-            </div>
+              </div>
 
-            <input
-              type="number"
-              min="0"
-              step="1"
-              placeholder="Batas Stok Menipis"
-              value={minStock}
-              onChange={e => setMinStock(e.target.value)}
-            />
-          </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gap: 12
+                }}
+              >
+                <div>
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Stok Saat Ini *"
+                    value={stock}
+                    onChange={e => setStock(e.target.value)}
+                    disabled={!!id}
+                    style={{ width: '100%' }}
+                  />
+
+                  {id && (
+                    <small style={{ color: 'var(--text-muted)' }}>
+                      Gunakan tombol + Stok atau - Stok untuk mengubah jumlah.
+                    </small>
+                  )}
+                </div>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Batas Stok Menipis"
+                  value={minStock}
+                  onChange={e => setMinStock(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+
+          {isDigital && (
+            <small style={{ color: 'var(--text-muted)' }}>
+              Produk digital tidak menggunakan stok fisik dan netto.
+            </small>
+          )}
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button
-              type="submit"
-              variant="solid"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" variant="solid" disabled={isSubmitting}>
               {isSubmitting ? 'Menyimpan...' : 'Simpan Produk'}
             </Button>
 
@@ -676,6 +847,8 @@ export default function Products() {
             <thead>
               <tr>
                 <th>Nama Produk</th>
+                <th>Jenis</th>
+                <th>Netto / Provider</th>
                 <th>Harga Jual</th>
                 <th>Stok</th>
                 <th>Aksi</th>
@@ -685,7 +858,7 @@ export default function Products() {
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: 40 }}>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: 40 }}>
                     <FaBoxOpen
                       size={40}
                       style={{ opacity: 0.2, marginBottom: 12 }}
@@ -696,78 +869,117 @@ export default function Products() {
                   </td>
                 </tr>
               ) : (
-                products.map(product => (
-                  <tr key={product.id}>
-                    <td>
-                      <strong>{product.name}</strong>
-                      <br />
-                      <small style={{ color: 'var(--text-muted)' }}>
-                        SKU: {product.sku || '-'}
-                      </small>
-                    </td>
+                products.map(product => {
+                  const digital = product.product_type === 'digital'
 
-                    <td>{formatRupiah(product.price)}</td>
+                  return (
+                    <tr key={product.id}>
+                      <td>
+                        <strong>{product.name}</strong>
+                        <br />
+                        <small style={{ color: 'var(--text-muted)' }}>
+                          SKU: {product.sku || '-'}
+                        </small>
+                      </td>
 
-                    <td>
-                      <span
-                        style={{
-                          color:
-                            product.stock <= product.min_stock
-                              ? 'red'
-                              : 'inherit',
-                          fontWeight:
-                            product.stock <= product.min_stock
-                              ? 'bold'
-                              : 'normal'
-                        }}
-                      >
-                        {product.stock}
-                      </span>
-                    </td>
-
-                    <td>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 8,
-                          flexWrap: 'wrap'
-                        }}
-                      >
-                        <Button
-                          variant="success"
-                          onClick={() => handleStockChange(product, true)}
-                          disabled={isSubmitting}
+                      <td>
+                        <span
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            background: digital ? '#e0f2fe' : '#dcfce7',
+                            color: digital ? '#0369a1' : '#166534'
+                          }}
                         >
-                          <FaBoxOpen /> + Stok
-                        </Button>
+                          {digital ? 'Digital' : 'Fisik'}
+                        </span>
+                      </td>
 
-                        <Button
-                          variant="warning"
-                          onClick={() => handleStockChange(product, false)}
-                          disabled={isSubmitting}
-                        >
-                          <FaMinusCircle /> - Stok
-                        </Button>
+                      <td>
+                        {digital ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ProviderBadge provider={product.provider_name} size={34} />
+                            <span>{product.provider_name || '-'}</span>
+                          </div>
+                        ) : (
+                          product.net_weight
+                            ? `${Number(product.net_weight)} ${product.net_weight_unit || ''}`
+                            : '-'
+                        )}
+                      </td>
 
-                        <Button
-                          variant="secondary"
-                          onClick={() => editProduct(product)}
-                          disabled={isSubmitting}
-                        >
-                          <FaEdit /> Edit
-                        </Button>
+                      <td>{formatRupiah(product.price)}</td>
 
-                        <Button
-                          variant="danger"
-                          onClick={() => handleDelete(product.id)}
-                          disabled={isSubmitting}
+                      <td>
+                        {digital ? (
+                          <span style={{ color: 'var(--text-muted)' }}>-</span>
+                        ) : (
+                          <span
+                            style={{
+                              color:
+                                product.stock <= product.min_stock
+                                  ? 'red'
+                                  : 'inherit',
+                              fontWeight:
+                                product.stock <= product.min_stock
+                                  ? 'bold'
+                                  : 'normal'
+                            }}
+                          >
+                            {product.stock}
+                          </span>
+                        )}
+                      </td>
+
+                      <td>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 8,
+                            flexWrap: 'wrap'
+                          }}
                         >
-                          <FaTrash /> Hapus
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {!digital && (
+                            <>
+                              <Button
+                                variant="success"
+                                onClick={() => handleStockChange(product, true)}
+                                disabled={isSubmitting}
+                              >
+                                <FaBoxOpen /> + Stok
+                              </Button>
+
+                              <Button
+                                variant="warning"
+                                onClick={() => handleStockChange(product, false)}
+                                disabled={isSubmitting}
+                              >
+                                <FaMinusCircle /> - Stok
+                              </Button>
+                            </>
+                          )}
+
+                          <Button
+                            variant="secondary"
+                            onClick={() => editProduct(product)}
+                            disabled={isSubmitting}
+                          >
+                            <FaEdit /> Edit
+                          </Button>
+
+                          <Button
+                            variant="danger"
+                            onClick={() => handleDelete(product.id)}
+                            disabled={isSubmitting}
+                          >
+                            <FaTrash /> Hapus
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>

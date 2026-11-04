@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
@@ -451,16 +450,30 @@ export default function InvoiceForm() {
 
       createdInvoiceId = invData.id
 
+      // ===== PERUBAHAN: Snapshot netto ke invoice_items =====
       const itemPayloads = items
         .filter(item => item.description && Number(item.quantity) > 0)
-        .map(item => ({
-          invoice_id: invData.id,
-          product_id: item.product_id ? item.product_id : null,
-          description: item.description,
-          quantity: Number(item.quantity),
-          unit_price: Number(item.unit_price) || 0,
-          subtotal: Number(item.subtotal) || 0
-        }))
+        .map(item => {
+          const selectedProduct = products.find(
+            product => String(product.id) === String(item.product_id)
+          )
+
+          return {
+            invoice_id: invData.id,
+            product_id: item.product_id || null,
+            description: item.description,
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price) || 0,
+            subtotal: Number(item.subtotal) || 0,
+            net_weight: selectedProduct?.net_weight
+              ? Number(selectedProduct.net_weight)
+              : null,
+            net_weight_unit: selectedProduct?.net_weight
+              ? selectedProduct.net_weight_unit || null
+              : null
+          }
+        })
+      // ===== END PERUBAHAN =====
 
       const { error: itemError } = await supabase
         .from('invoice_items')
@@ -489,10 +502,24 @@ export default function InvoiceForm() {
           p_invoice_id: invData.id
         })
 
-      if (finalizeError) throw finalizeError
+      if (finalizeError) {
+        console.error('FINALIZE INVOICE ERROR:', {
+          message: finalizeError.message,
+          details: finalizeError.details,
+          hint: finalizeError.hint,
+          code: finalizeError.code
+        })
+
+        throw new Error(
+          `Finalisasi gagal: ${finalizeError.message}\nDetail: ${finalizeError.details || '-'}\nKode: ${finalizeError.code || '-'}`
+        )
+      }
+
       if (!finalizeData?.success) {
         throw new Error('Invoice gagal difinalisasi.')
       }
+
+      console.log('FINALIZE INVOICE RESULT:', finalizeData)
 
       try {
         await logActivity(
@@ -507,15 +534,22 @@ export default function InvoiceForm() {
       showToast('Invoice berhasil dibuat!', 'success')
       navigate(`/invoices/${invData.id}`)
     } catch (error) {
-      console.error('Gagal membuat invoice:', error)
+      console.error('GAGAL MEMBUAT INVOICE:', error)
+
+      const errorMessage = [
+        error.message,
+        error.details,
+        error.hint,
+        error.code ? `Kode: ${error.code}` : null
+      ].filter(Boolean).join('\n')
 
       if (createdInvoiceId) {
         showToast(
-          'Invoice belum berhasil diproses. Jika tersimpan sebagai draft, minta Owner memeriksa invoice tersebut. ' + error.message,
+          'Invoice masih Draft. ' + errorMessage,
           'error'
         )
       } else {
-        showToast('Gagal: ' + error.message, 'error')
+        showToast('Gagal: ' + errorMessage, 'error')
       }
     } finally {
       setIsSubmitting(false)
@@ -714,6 +748,8 @@ export default function InvoiceForm() {
                           onClick={() => {
                             if (items.length > 1) {
                               setItems(items.filter((_, i) => i !== index))
+                            } else {
+                              setItems([emptyItem()])
                             }
                           }}
                           style={{ padding: '8px 12px' }}

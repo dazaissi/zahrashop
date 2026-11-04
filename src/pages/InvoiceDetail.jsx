@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import html2pdf from 'html2pdf.js'
@@ -92,15 +91,8 @@ export default function InvoiceDetail() {
       .set({
         margin: 0.5,
         filename: `Invoice-${invoice.invoice_number.replace(/\//g, '-')}.pdf`,
-        html2canvas: {
-          scale: 2,
-          useCORS: true
-        },
-        jsPDF: {
-          unit: 'in',
-          format: 'a4',
-          orientation: 'portrait'
-        }
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
       })
       .from(element)
       .save()
@@ -116,15 +108,8 @@ export default function InvoiceDetail() {
       .set({
         margin: 0.5,
         filename: `Kwitansi-${payment.id}.pdf`,
-        html2canvas: {
-          scale: 2,
-          useCORS: true
-        },
-        jsPDF: {
-          unit: 'in',
-          format: 'a5',
-          orientation: 'landscape'
-        }
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a5', orientation: 'landscape' }
       })
       .from(element)
       .save()
@@ -133,7 +118,10 @@ export default function InvoiceDetail() {
   function getPublicLink() {
     if (!invoice?.invoice_number || !invoice?.public_token) return null
 
-    return `${window.location.origin}/public-invoice/${encodeURIComponent(invoice.invoice_number)}/${encodeURIComponent(invoice.public_token)}`
+    const basePath = import.meta.env.BASE_URL || '/'
+    const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`
+
+    return `${window.location.origin}${normalizedBasePath}#/public-invoice/${encodeURIComponent(invoice.invoice_number)}/${encodeURIComponent(invoice.public_token)}`
   }
 
   async function handleShareLink() {
@@ -162,10 +150,7 @@ export default function InvoiceDetail() {
     if (!publicUrl) return '#'
 
     let phone = invoice.customers.phone.replace(/\D/g, '')
-
-    if (phone.startsWith('0')) {
-      phone = '62' + phone.slice(1)
-    }
+    if (phone.startsWith('0')) phone = '62' + phone.slice(1)
 
     const message = `Halo *${invoice.customers.name || 'Pelanggan'}*,\n\nBerikut kami kirimkan Invoice *${invoice.invoice_number}* dengan total *${formatRupiah(invoice.total)}*.\n\nStatus: *${(invoice.status || '').toUpperCase()}*\n\nAnda dapat melihat rincian invoice secara online melalui link berikut:\n${publicUrl}\n\nTerima kasih.`
 
@@ -196,9 +181,7 @@ export default function InvoiceDetail() {
       })
 
       if (error) throw error
-      if (!data?.success) {
-        throw new Error('Pembayaran gagal dicatat.')
-      }
+      if (!data?.success) throw new Error('Pembayaran gagal dicatat.')
 
       try {
         await logActivity(
@@ -223,6 +206,55 @@ export default function InvoiceDetail() {
     }
   }
 
+  async function handleFinalize() {
+    if (!invoice || invoice.status !== 'draft' || isUpdating) return
+
+    const confirmed = await showConfirm(
+      'Finalisasi Invoice',
+      'Apakah kamu yakin ingin memfinalisasi invoice ini? Stok produk akan dikurangi secara otomatis.'
+    )
+
+    if (!confirmed) return
+
+    setIsUpdating(true)
+
+    try {
+      const { data, error } = await supabase.rpc('finalize_invoice', {
+        p_invoice_id: invoice.id
+      })
+
+      if (error) throw error
+      if (!data?.success) {
+        throw new Error('Invoice gagal difinalisasi.')
+      }
+
+      try {
+        await logActivity(
+          session.user.id,
+          'FINALISASI INVOICE',
+          `Memfinalisasi invoice ${invoice.invoice_number} dengan status ${data.status}`
+        )
+      } catch (logError) {
+        console.error('Gagal mencatat aktivitas:', logError)
+      }
+
+      showToast(
+        `Invoice berhasil difinalisasi dengan status ${data.status.toUpperCase()}!`,
+        'success'
+      )
+
+      await fetchInvoice()
+    } catch (error) {
+      console.error('Gagal memfinalisasi invoice:', error)
+      showToast(
+        'Gagal memfinalisasi invoice: ' + error.message,
+        'error'
+      )
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
   async function handleDelete() {
     if (!isOwner) {
       return showToast('Hanya Owner yang dapat menghapus invoice.', 'error')
@@ -240,9 +272,7 @@ export default function InvoiceDetail() {
     try {
       const { data, error } = await supabase.rpc(
         'delete_invoice_and_restore_stock',
-        {
-          p_invoice_id: invoice.id
-        }
+        { p_invoice_id: invoice.id }
       )
 
       if (error) throw error
@@ -304,17 +334,10 @@ export default function InvoiceDetail() {
         onClose={() => setIsPayModalOpen(false)}
         title="Catat Pembayaran"
       >
-        <p style={{
-          color: 'var(--text-muted)',
-          marginBottom: 16,
-          textAlign: 'center'
-        }}>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 16, textAlign: 'center' }}>
           Sisa Tagihan:
           <br />
-          <strong style={{
-            color: '#ef4444',
-            fontSize: 24
-          }}>
+          <strong style={{ color: '#ef4444', fontSize: 24 }}>
             {formatRupiah(sisaTagihan)}
           </strong>
         </p>
@@ -349,11 +372,7 @@ export default function InvoiceDetail() {
                   setIsPayModalOpen(false)
                 }
               }}
-              style={{
-                flex: 1,
-                justifyContent: 'center',
-                padding: 14
-              }}
+              style={{ flex: 1, justifyContent: 'center', padding: 14 }}
             >
               Batal
             </Button>
@@ -362,11 +381,7 @@ export default function InvoiceDetail() {
               type="submit"
               variant="success"
               disabled={isUpdating}
-              style={{
-                flex: 1,
-                justifyContent: 'center',
-                padding: 14
-              }}
+              style={{ flex: 1, justifyContent: 'center', padding: 14 }}
             >
               {isUpdating ? 'Menyimpan...' : 'Simpan'}
             </Button>
@@ -409,28 +424,16 @@ export default function InvoiceDetail() {
                 <h2 style={{ margin: 0, fontSize: 24 }}>
                   {profile?.business_name || 'Bisnis Saya'}
                 </h2>
-                <p style={{
-                  margin: '4px 0 0',
-                  fontSize: 12,
-                  color: '#6b7280'
-                }}>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#6b7280' }}>
                   {profile?.address}
                 </p>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <h3 style={{
-                  margin: 0,
-                  color: 'var(--primary)',
-                  fontSize: 20
-                }}>
+                <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: 20 }}>
                   KWITANSI
                 </h3>
-                <p style={{
-                  margin: '4px 0 0',
-                  fontSize: 12,
-                  color: '#6b7280'
-                }}>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#6b7280' }}>
                   No: KW-{String(selectedReceipt?.id || '').padStart(5, '0')}
                 </p>
               </div>
@@ -449,11 +452,7 @@ export default function InvoiceDetail() {
               </div>
 
               <div style={{ color: '#6b7280' }}>Uang Sejumlah:</div>
-              <div style={{
-                fontWeight: 800,
-                fontSize: 20,
-                color: 'var(--primary)'
-              }}>
+              <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--primary)' }}>
                 {formatRupiah(selectedReceipt?.amount)}
               </div>
 
@@ -475,24 +474,47 @@ export default function InvoiceDetail() {
               flexWrap: 'wrap',
               gap: 20
             }}>
+              {/* ===== PERUBAHAN: Auto Sign Menggunakan Logo ===== */}
               <div style={{ textAlign: 'center', width: 150 }}>
-                <p style={{ marginBottom: 40, fontSize: 13 }}>Penerima,</p>
+                <p style={{ marginBottom: 4, fontSize: 13 }}>Penerima,</p>
+                <div style={{
+                  height: 60,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {profile?.logo_url ? (
+                    <img
+                      src={profile.logo_url}
+                      alt="Tanda Tangan"
+                      style={{
+                        maxHeight: 60,
+                        maxWidth: 140,
+                        objectFit: 'contain',
+                        mixBlendMode: 'multiply'
+                      }}
+                      crossOrigin="anonymous"
+                    />
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                      Belum ada logo
+                    </span>
+                  )}
+                </div>
                 <p style={{
                   borderTop: '1px solid #111827',
                   paddingTop: 8,
-                  fontSize: 13
+                  fontSize: 13,
+                  marginTop: 4
                 }}>
                   ({profile?.business_name || 'Bisnis Saya'})
                 </p>
               </div>
+              {/* ===== END PERUBAHAN ===== */}
 
               <div style={{ textAlign: 'center', width: 150 }}>
                 <p style={{ marginBottom: 40, fontSize: 13 }}>Penyetor,</p>
-                <p style={{
-                  borderTop: '1px solid #111827',
-                  paddingTop: 8,
-                  fontSize: 13
-                }}>
+                <p style={{ borderTop: '1px solid #111827', paddingTop: 8, fontSize: 13 }}>
                   ({invoice.customers?.name || 'Pelanggan'})
                 </p>
               </div>
@@ -527,6 +549,18 @@ export default function InvoiceDetail() {
         </div>
 
         <div className="action-buttons-group">
+          {invoice.status === 'draft' && (
+            <Button
+              variant="success"
+              onClick={handleFinalize}
+              disabled={isUpdating}
+              className="btn-mobile-full"
+            >
+              <FaCheckCircle />
+              {isUpdating ? 'Memproses...' : 'Finalisasi Invoice'}
+            </Button>
+          )}
+
           {isOwner && (
             <Button
               variant="danger"
@@ -576,11 +610,7 @@ export default function InvoiceDetail() {
       {!isPaid && invoice.status !== 'draft' && (
         <div className="alert-warning">
           <div className="alert-warning-text">
-            <h4 style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8
-            }}>
+            <h4 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <FaExclamationTriangle /> Tagihan Belum Lunas
             </h4>
             <p>
@@ -599,10 +629,7 @@ export default function InvoiceDetail() {
                 setPayAmount(String(sisaTagihan))
                 setIsPayModalOpen(true)
               }}
-              style={{
-                width: '100%',
-                justifyContent: 'center'
-              }}
+              style={{ width: '100%', justifyContent: 'center' }}
             >
               Catat Pembayaran
             </Button>
@@ -615,8 +642,9 @@ export default function InvoiceDetail() {
           <div className="alert-warning-text">
             <h4>Invoice masih berstatus Draft</h4>
             <p>
-              Invoice ini belum berhasil difinalisasi. Periksa stok dan data
-              barang sebelum memprosesnya kembali.
+              Invoice ini belum berhasil difinalisasi. Klik tombol
+              <strong> Finalisasi Invoice</strong> di atas untuk memproses
+              pengurangan stok, atau Hapus jika ingin membatalkan.
             </p>
           </div>
         </div>
@@ -643,18 +671,10 @@ export default function InvoiceDetail() {
                 <img
                   src={profile.logo_url}
                   alt="Logo"
-                  style={{
-                    height: 50,
-                    objectFit: 'contain',
-                    mixBlendMode: 'multiply'
-                  }}
+                  style={{ height: 50, objectFit: 'contain', mixBlendMode: 'multiply' }}
                 />
               )}
-              <h2 style={{
-                margin: 0,
-                color: 'var(--primary)',
-                fontSize: 28
-              }}>
+              <h2 style={{ margin: 0, color: 'var(--primary)', fontSize: 28 }}>
                 INVOICE
               </h2>
             </div>
@@ -697,11 +717,7 @@ export default function InvoiceDetail() {
               </p>
 
               {invoice.due_date && (
-                <p style={{
-                  margin: '0 0 4px',
-                  color: '#ef4444',
-                  fontSize: 13
-                }}>
+                <p style={{ margin: '0 0 4px', color: '#ef4444', fontSize: 13 }}>
                   <strong>Jatuh Tempo:</strong> {formatTanggal(invoice.due_date)}
                   {invoice.due_time && ` (${invoice.due_time})`}
                 </p>
@@ -751,11 +767,7 @@ export default function InvoiceDetail() {
               {invoice.customers?.name || 'Pelanggan Umum'}
             </h3>
 
-            <p style={{
-              margin: 0,
-              color: 'var(--text-muted)',
-              fontSize: 14
-            }}>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 14 }}>
               {invoice.customers?.phone}
             </p>
 
@@ -780,21 +792,12 @@ export default function InvoiceDetail() {
               Metode Pembayaran:
             </p>
 
-            <h3 style={{
-              margin: '0 0 4px',
-              textTransform: 'uppercase',
-              fontSize: 18
-            }}>
+            <h3 style={{ margin: '0 0 4px', textTransform: 'uppercase', fontSize: 18 }}>
               {invoice.payment_method}
             </h3>
 
             {invoice.payment_method === 'hutang' && (
-              <p style={{
-                margin: 0,
-                color: '#ef4444',
-                fontSize: 13,
-                fontWeight: 'bold'
-              }}>
+              <p style={{ margin: 0, color: '#ef4444', fontSize: 13, fontWeight: 'bold' }}>
                 Sisa: {formatRupiah(sisaTagihan)}
               </p>
             )}
@@ -816,64 +819,48 @@ export default function InvoiceDetail() {
           }}>
             <thead>
               <tr style={{ background: 'var(--bg-color)' }}>
-                <th style={{ textAlign: 'left', padding: '12px 16px' }}>
-                  Deskripsi
-                </th>
-                <th width="80" style={{ textAlign: 'center', padding: '12px 16px' }}>
-                  Qty
-                </th>
-                <th width="130" style={{ textAlign: 'right', padding: '12px 16px' }}>
-                  Harga
-                </th>
-                <th width="130" style={{ textAlign: 'right', padding: '12px 16px' }}>
-                  Subtotal
-                </th>
+                <th style={{ textAlign: 'left', padding: '12px 16px' }}>Deskripsi</th>
+                <th width="80" style={{ textAlign: 'center', padding: '12px 16px' }}>Qty</th>
+                <th width="130" style={{ textAlign: 'right', padding: '12px 16px' }}>Harga</th>
+                <th width="130" style={{ textAlign: 'right', padding: '12px 16px' }}>Subtotal</th>
               </tr>
             </thead>
 
             <tbody>
               {items.map((item, index) => (
-                <tr
-                  key={item.id || index}
-                  style={{ borderBottom: '1px solid var(--border-color)' }}
-                >
+                <tr key={item.id || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '12px 16px' }}>
-                    <strong style={{
-                      display: 'block',
-                      fontSize: 14
-                    }}>
+                    <strong style={{ display: 'block', fontSize: 14 }}>
                       {item.description}
                     </strong>
 
-                    {item.products && (
+                    {item.net_weight && (
                       <span style={{
+                        display: 'block',
                         fontSize: 12,
-                        color: 'var(--text-muted)'
+                        color: 'var(--text-muted)',
+                        marginTop: 3
                       }}>
+                        Netto: {Number(item.net_weight)} {item.net_weight_unit || ''}
+                      </span>
+                    )}
+
+                    {item.products && (
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                         {item.products.name}
                       </span>
                     )}
                   </td>
 
-                  <td style={{
-                    textAlign: 'center',
-                    padding: '12px 16px'
-                  }}>
+                  <td style={{ textAlign: 'center', padding: '12px 16px' }}>
                     {item.quantity}
                   </td>
 
-                  <td style={{
-                    textAlign: 'right',
-                    padding: '12px 16px'
-                  }}>
+                  <td style={{ textAlign: 'right', padding: '12px 16px' }}>
                     {formatRupiah(item.unit_price)}
                   </td>
 
-                  <td style={{
-                    textAlign: 'right',
-                    padding: '12px 16px',
-                    fontWeight: 'bold'
-                  }}>
+                  <td style={{ textAlign: 'right', padding: '12px 16px', fontWeight: 'bold' }}>
                     {formatRupiah(item.subtotal)}
                   </td>
                 </tr>
@@ -1038,15 +1025,10 @@ export default function InvoiceDetail() {
 
       {payments.length > 0 && (
         <div style={{ marginTop: 32 }}>
-          <h2 style={{ fontSize: 20, marginBottom: 16 }}>
-            Riwayat Pembayaran
-          </h2>
+          <h2 style={{ fontSize: 20, marginBottom: 16 }}>Riwayat Pembayaran</h2>
 
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{
-              overflowX: 'auto',
-              WebkitOverflowScrolling: 'touch'
-            }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <table style={{
                 minWidth: 500,
                 margin: 0,
@@ -1058,22 +1040,14 @@ export default function InvoiceDetail() {
                     <th style={{ padding: '12px 16px' }}>Tanggal</th>
                     <th style={{ padding: '12px 16px' }}>Nominal</th>
                     <th style={{ padding: '12px 16px' }}>Metode</th>
-                    <th style={{
-                      padding: '12px 16px',
-                      textAlign: 'center'
-                    }}>
-                      Aksi
-                    </th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center' }}>Aksi</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {payments.map(payment => (
                     <tr key={payment.id}>
-                      <td style={{
-                        padding: '12px 16px',
-                        fontSize: 13
-                      }}>
+                      <td style={{ padding: '12px 16px', fontSize: 13 }}>
                         {payment.payment_date
                           ? new Date(payment.payment_date).toLocaleString('id-ID')
                           : new Date(payment.created_at).toLocaleString('id-ID')}
@@ -1093,17 +1067,11 @@ export default function InvoiceDetail() {
                         {payment.payment_method}
                       </td>
 
-                      <td style={{
-                        padding: '12px 16px',
-                        textAlign: 'center'
-                      }}>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                         <Button
                           variant="secondary"
                           onClick={() => setSelectedReceipt(payment)}
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: 12
-                          }}
+                          style={{ padding: '6px 12px', fontSize: 12 }}
                         >
                           <FaPrint /> Cetak Kwitansi
                         </Button>
