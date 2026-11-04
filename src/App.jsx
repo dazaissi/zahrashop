@@ -1,10 +1,14 @@
-
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { UIProvider } from './context/UIContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 
+// Import Komponen Background Animasi
+import StarBackground from './components/StarBackground'
+import ZodiacConstellations from './components/ZodiacConstellations'
+
+// Import Halaman
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Customers from './pages/Customers'
@@ -24,13 +28,19 @@ export default function App() {
   return (
     <AuthProvider>
       <UIProvider>
+        
+        {/* Background Animasi: Debu Bintang & Rasi Bintang */}
+        <StarBackground />
+        <ZodiacConstellations />
+
         <Routes>
           {/* Halaman Login */}
           <Route path="/login" element={<Login />} />
 
-        <Route path="/public-invoice/:invoiceNumber/:token" element={<PublicInvoice />} />
+          {/* Halaman Publik (Tanpa Login) */}
+          <Route path="/public-invoice/:invoiceNumber/:token" element={<PublicInvoice />} />
 
-          {/* Halaman yang dapat diakses Owner dan Admin */}
+          {/* Halaman yang membutuhkan Login (Owner & Admin) */}
           <Route
             element={
               <ProtectedRoute>
@@ -38,10 +48,7 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route
-              path="/"
-              element={<Navigate to="/dashboard" replace />}
-            />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
@@ -52,9 +59,7 @@ export default function App() {
             <Route path="/stock-opname" element={<StockOpname />} />
 
             {/* Halaman khusus Owner */}
-            <Route
-              element={<ProtectedRoute allowedRoles={['owner']} />}
-            >
+            <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
               <Route path="/reports" element={<Reports />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/team" element={<Team />} />
@@ -64,10 +69,7 @@ export default function App() {
           </Route>
 
           {/* Halaman tidak ditemukan */}
-          <Route
-            path="*"
-            element={<Navigate to="/" replace />}
-          />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </UIProvider>
     </AuthProvider>

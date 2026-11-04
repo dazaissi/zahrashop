@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
@@ -258,12 +257,12 @@ export default function Dashboard() {
 
   const AnimatedCard = ({ to, title, value, icon, colorClass, textColor, delay, isMoney = false }) => (
     <Link to={to} style={{ textDecoration: 'none' }}>
-      <motion.div className={`stat-card ${colorClass}`} style={{ height: '100%', cursor: 'pointer', position: 'relative', overflow: 'hidden' }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay, ease: 'easeOut' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{icon}<span>{title}</span></div>
-        <strong style={{ color: textColor, marginTop: 8 }}>
+      <motion.div className={`stat-card ${colorClass}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay, ease: 'easeOut' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, zIndex: 2 }}>{icon}<span>{title}</span></div>
+        <strong style={{ color: textColor, marginTop: 8, zIndex: 2 }}>
           {isMoney ? <AnimatedNumber value={value} /> : value}
         </strong>
-        <div style={{ position: 'absolute', bottom: 16, right: 16, opacity: 0.5 }}><FaArrowRight size={14} /></div>
+        <div style={{ position: 'absolute', bottom: 16, right: 16, opacity: 0.5, zIndex: 2 }}><FaArrowRight size={14} /></div>
       </motion.div>
     </Link>
   )
@@ -278,7 +277,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <p style={{ margin: '6px 0 0', color: 'var(--text-muted)' }}>Ringkasan aktivitas bisnis Zahra Shop</p>
+          <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>Ringkasan aktivitas bisnis Zahra Shop</p>
         </div>
       </div>
 
@@ -298,11 +297,11 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)' }}>Dari:</span>
-            <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setActiveFilter('manual') }} style={{ width: 'auto', background: 'var(--bg-color)', padding: '8px 12px' }} />
+            <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setActiveFilter('manual') }} style={{ width: 'auto', padding: '8px 12px' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)' }}>Sampai:</span>
-            <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setActiveFilter('manual') }} style={{ width: 'auto', background: 'var(--bg-color)', padding: '8px 12px' }} />
+            <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setActiveFilter('manual') }} style={{ width: 'auto', padding: '8px 12px' }} />
           </div>
         </div>
       </div>
@@ -320,18 +319,20 @@ export default function Dashboard() {
         </div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <div className="card" style={{ marginBottom: 24, background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', color: 'white', border: 'none' }}>
+          
+          {/* KARTU INSIGHT (Diubah menjadi lebih elegan) */}
+          <div className="card" style={{ marginBottom: 24, background: 'linear-gradient(135deg, rgba(236,72,153,0.95) 0%, rgba(190,24,93,0.95) 100%)', color: 'white', border: 'none', backdropFilter: 'blur(10px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <div style={{ background: 'rgba(255,255,255,0.2)', padding: 8, borderRadius: 8 }}><FaLightbulb size={20} color="white" /></div>
+              <div style={{ background: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 }}><FaLightbulb size={22} color="white" /></div>
               <div>
-                <h3 style={{ margin: 0, color: 'white' }}>Ringkasan Aktivitas Zahra Shop</h3>
-                <p style={{ margin: 0, fontSize: 13, color: '#fbcfe8' }}>Informasi berdasarkan periode yang dipilih.</p>
+                <h3 style={{ margin: 0, color: 'white', fontSize: 20 }}>Ringkasan Aktivitas Zahra Shop</h3>
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>Informasi berdasarkan periode yang dipilih.</p>
               </div>
             </div>
-            <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'grid', gap: 10 }}>
               {insights.map((insight, index) => (
-                <div key={index} style={{ background: 'rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: 8 }}>
-                  <span style={{ fontSize: 14, lineHeight: 1.5, color: 'white' }}>{insight}</span>
+                <div key={index} style={{ background: 'rgba(255,255,255,0.15)', padding: '14px 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <span style={{ fontSize: 14, lineHeight: 1.6, color: 'white', fontWeight: 500 }}>{insight}</span>
                 </div>
               ))}
             </div>
@@ -347,7 +348,7 @@ export default function Dashboard() {
           <div className="card" style={{ marginBottom: 32 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
               <h3 style={{ margin: 0 }}>Analitik Bisnis</h3>
-              <select value={chartType} onChange={e => setChartType(e.target.value)} style={{ width: 'auto', padding: '8px 32px 8px 16px', fontWeight: 'bold', cursor: 'pointer', border: '2px solid var(--primary)', color: 'var(--primary)' }}>
+              <select value={chartType} onChange={e => setChartType(e.target.value)} style={{ width: 'auto', padding: '8px 32px 8px 16px', fontWeight: 'bold', cursor: 'pointer', border: '2px solid var(--primary)', color: 'var(--primary)', background: 'rgba(255,255,255,0.5)' }}>
                 {userRole === 'owner' && <option value="keuangan">Grafik Uang Masuk</option>}
                 <option value="produk">Grafik Produk Terlaris</option>
                 <option value="metode">Grafik Metode Pembayaran</option>
@@ -359,12 +360,15 @@ export default function Dashboard() {
                 chartKeuangan.length === 0 ? <EmptyState /> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartKeuangan} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
-                      <XAxis dataKey="tanggal" stroke="var(--text-muted)" fontSize={12} />
-                      <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={value => `Rp ${value / 1000}k`} />
-                      <Tooltip formatter={value => formatRupiah(value)} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                      <XAxis dataKey="tanggal" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={value => `Rp ${value / 1000}k`} />
+                      <Tooltip 
+                        formatter={value => formatRupiah(value)} 
+                        contentStyle={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 8px 24px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)' }} 
+                      />
                       <Legend verticalAlign="top" height={36} iconType="circle" />
-                      <Bar dataKey="uangMasuk" name="Uang Masuk" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} animationDuration={1500} />
-                      <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} animationDuration={1500} />
+                      <Bar dataKey="uangMasuk" name="Uang Masuk" fill="#10b981" radius={[6, 6, 0, 0]} barSize={30} animationDuration={1500} />
+                      <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#ef4444" radius={[6, 6, 0, 0]} barSize={30} animationDuration={1500} />
                     </BarChart>
                   </ResponsiveContainer>
                 )
@@ -377,8 +381,8 @@ export default function Dashboard() {
                       <Pie data={topProducts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} animationDuration={1500}>
                         {topProducts.map((entry, index) => <Cell key={`product-${index}`} fill={COLORS[index % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip formatter={value => `${value} Pcs`} />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 13 }} />
+                      <Tooltip formatter={value => `${value} Pcs`} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 13, fontWeight: 600 }} />
                     </PieChart>
                   </ResponsiveContainer>
                 )
@@ -391,8 +395,8 @@ export default function Dashboard() {
                       <Pie data={paymentMethods} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} animationDuration={1500}>
                         {paymentMethods.map((entry, index) => <Cell key={`payment-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip formatter={value => `${value} Transaksi`} />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 13 }} />
+                      <Tooltip formatter={value => `${value} Transaksi`} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 13, fontWeight: 600 }} />
                     </PieChart>
                   </ResponsiveContainer>
                 )
@@ -401,14 +405,14 @@ export default function Dashboard() {
           </div>
 
           {kritis.length > 0 && (
-            <div className="card" style={{ border: '1px solid #fecaca', marginBottom: 24 }}>
+            <div className="card" style={{ border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(254, 242, 242, 0.6)', marginBottom: 24 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <h3 style={{ margin: 0, color: '#ef4444' }}>Peringatan Stok Menipis</h3>
-                <Link to="/products" style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Kelola Produk →</Link>
+                <Link to="/products" style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>Kelola Produk →</Link>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12, marginTop: 16 }}>
                 {kritis.map(product => (
-                  <Link key={product.id} to="/products" style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 8, textDecoration: 'none', color: '#ef4444', fontWeight: 'bold' }}>
+                  <Link key={product.id} to="/products" style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 18px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, textDecoration: 'none', color: '#ef4444', fontWeight: 'bold', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
                     <span>{product.name}</span>
                     <span>Sisa: {product.stock}</span>
                   </Link>
@@ -424,9 +428,9 @@ export default function Dashboard() {
 
 function EmptyState() {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', background: 'var(--bg-color)', borderRadius: 12, border: '2px dashed var(--border-color)', gap: 12 }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.3)', borderRadius: 12, border: '2px dashed var(--border-color)', gap: 12 }}>
       <FaChartPie size={40} style={{ opacity: 0.3 }} />
-      <p style={{ margin: 0, fontWeight: 500 }}>Belum ada data untuk ditampilkan di periode ini.</p>
+      <p style={{ margin: 0, fontWeight: 600 }}>Belum ada data untuk ditampilkan di periode ini.</p>
     </div>
   )
 }

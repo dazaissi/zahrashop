@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
+    "@tsparticles/react": "^4.5.1",
+    "@tsparticles/slim": "^4.5.1",
     "framer-motion": "^14.9.1",
     "html2pdf.js": "^0.14.0",
     "html5-qrcode": "^2.3.8",
