@@ -64,22 +64,18 @@ input[type="number"] {
 
 /* SIDEBAR */
 .sidebar {
-  width: 260px;
-  min-width: 260px;
-  max-width: 260px;
+  width: 260px; 
   background: linear-gradient(180deg, #f472b6 0%, #ec4899 50%, #be185d 100%);
   color: white;
-  padding: 24px 20px;
-  display: flex;
+  padding: 24px 20px; 
+  padding-bottom: 40px; /* TAMBAHKAN INI: Agar tombol Keluar tidak mepet ke bawah */
+  display: flex; 
   flex-direction: column;
-  height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
+  height: 100%; 
+  overflow: hidden; 
   flex-shrink: 0;
-  box-shadow: 4px 0 24px rgba(236, 72, 153, 0.2);
+  box-shadow: 4px 0 24px rgba(236, 72, 153, 0.2); 
   z-index: 100;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -100,16 +96,18 @@ input[type="number"] {
   background: rgba(255, 255, 255, 0.8);
 }
 
-/* SIDEBAR NAV */
-.sidebar nav {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  overflow: visible;
-  padding: 0 2px 0 0;
+
+/* Menu Sidebar Dibuat Scrollable */
+.sidebar nav { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+  flex: 1; 
+  overflow-y: auto;   
+  overflow-x: hidden; 
+  min-height: 0;      
+  padding-right: 4px; 
+  margin-bottom: 20px;
 }
 
 /* SIDEBAR LINKS */
@@ -1086,6 +1084,7 @@ tr:hover td {
     flex-direction: column;
   }
 
+  
   .sidebar {
     position: fixed;
     top: 0;
@@ -1093,7 +1092,7 @@ tr:hover td {
     width: 260px;
     min-width: 260px;
     max-width: 260px;
-    height: 100vh;
+    height: 100dvhs;
     height: 100dvh;
     z-index: 1000;
     transition: left 0.3s ease;
