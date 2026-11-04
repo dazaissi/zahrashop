@@ -140,6 +140,12 @@ export default function Dashboard() {
     </Link>
   )
 
+  // Cek apakah data grafik sedang kosong
+  const isEmpty = 
+    (chartType === 'keuangan' && chartKeuangan.length === 0) ||
+    (chartType === 'produk' && topProducts.length === 0) ||
+    (chartType === 'metode' && paymentMethods.length === 0)
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
@@ -210,7 +216,8 @@ export default function Dashboard() {
               </select>
             </div>
 
-            <div style={{ height: 350, width: '100%', minWidth: 0 }}>
+            {/* TINGGI GRAFIK AKAN OTOMATIS MENYESUAIKAN JIKA KOSONG */}
+            <div style={{ height: isEmpty ? 200 : 350, width: '100%', minWidth: 0, transition: 'height 0.3s ease' }}>
               {chartType === 'keuangan' && (
                 chartKeuangan.length === 0 ? <EmptyState /> :
                 <ResponsiveContainer width="100%" height="100%">
@@ -270,11 +277,23 @@ export default function Dashboard() {
   )
 }
 
+// KOMPONEN EMPTY STATE YANG DIPERBAIKI
 function EmptyState() {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-      <FaChartPie size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
-      <p>Belum ada data untuk ditampilkan di periode ini.</p>
+    <div style={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      color: 'var(--text-muted)',
+      background: 'var(--bg-color)',
+      borderRadius: 12,
+      border: '2px dashed var(--border-color)',
+      gap: 12
+    }}>
+      <FaChartPie size={40} style={{ opacity: 0.3 }} />
+      <p style={{ margin: 0, fontWeight: 500 }}>Belum ada data untuk ditampilkan di periode ini.</p>
     </div>
   )
 }

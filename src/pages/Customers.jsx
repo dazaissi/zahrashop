@@ -29,7 +29,7 @@ export default function Customers() {
 
   async function fetchCustomers() {
     setLoading(true)
-    const { data, error } = await supabase.from('customers').select('*').order('name')
+    const { data, error } = await supabase.from('customers').select('*').order('customer_code')
     if (error) showToast("Gagal memuat: " + error.message, 'error')
     else setCustomers(data)
     setLoading(false)
@@ -39,6 +39,8 @@ export default function Customers() {
     e.preventDefault()
     if (!session) return showToast("Sesi tidak ditemukan.", "error")
     setIsSubmitting(true)
+    
+    // customer_code TIDAK dimasukkan ke payload, biar database yang generate otomatis
     const payload = { name, email: email || null, phone: phone || null, address: address || null, user_id: session.user.id }
     
     let errorMsg = null
@@ -160,18 +162,18 @@ export default function Customers() {
       </div>
 
       {loading ? <div className="skeleton" style={{ height: 200 }}></div> : (
-        <div style={{ overflowX: 'auto', width: '100%' }}>
+        <div className="table-responsive">
           <table>
-            <thead><tr><th>Nama</th><th>Kontak</th><th>Alamat</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Kode</th><th>Nama</th><th>Kontak</th><th>Aksi</th></tr></thead>
             <tbody>
               {customers.map(c => (
                 <tr key={c.id}>
+                  <td><strong style={{ color: 'var(--primary)' }}>{c.customer_code || '-'}</strong></td>
                   <td><strong>{c.name}</strong></td>
                   <td>
                     {c.phone ? <a href={getWhatsAppLink(c.phone)} target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: 6 }}><FaWhatsapp size={18} /> {c.phone}</a> : '-'}
                     <br/><small style={{ color: 'var(--text-muted)' }}>{c.email}</small>
                   </td>
-                  <td>{c.address}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <Button variant="primary" onClick={() => openHistory(c)}><FaHistory /> Riwayat</Button>

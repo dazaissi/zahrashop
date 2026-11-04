@@ -10,6 +10,7 @@ import BarcodeScanner from '../components/BarcodeScanner'
 import { logActivity } from '../lib/logger'
 import { FaBarcode, FaPlus, FaSave, FaTrash } from 'react-icons/fa'
 import Button from '../components/ui/Button'
+import Select from '../components/ui/Select' // <-- Import Custom Select
 
 const STATIC_QRIS = "00020101021126570011ID.DANA.WWW011893600915315843978402091584397840303UMI51440014ID.CO.QRIS.WWW0215ID10210814007440303UMI5204729853033605802ID5914Stella's Store6012Kota Bandung6105402656304E9BC"
 
@@ -46,7 +47,7 @@ export default function InvoiceForm() {
   const [discount, setDiscount] = useState('')
   const [shipping, setShipping] = useState('')
   
-  const [items, setItems] = useState([{ product_id: '', description: '', quantity: 1, unit_price: '', subtotal: 0 }])
+  const [items, setItems] = useState([{ product_id: '', description: '', quantity: 0, unit_price: '', subtotal: 0 }])
 
   useEffect(() => {
     if (session) { fetchCustomers(); fetchProducts(); generateInvoiceNumber() }
@@ -63,7 +64,7 @@ export default function InvoiceForm() {
   }, [tempoDays, tempoMode, issueDate, paymentMethod])
 
   async function fetchCustomers() { const { data } = await supabase.from('customers').select('*').order('name'); if (data) setCustomers(data) }
-  async function fetchProducts() { const { data } = await supabase.from('products').select('*').order('name'); if (data) setProducts(data) }
+  async function fetchProducts() { const { data } = await supabase.from('products').select('*').gt('stock', 0).order('name'); if (data) setProducts(data) }
 
   async function generateInvoiceNumber() {
     const prefix = `INV/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/`
@@ -80,6 +81,7 @@ export default function InvoiceForm() {
     if (found) {
       const existIdx = items.findIndex(item => item.product_id === String(found.id))
       if (existIdx !== -1) {
+        if (items[existIdx].quantity >= found.stock) return showToast('Stok tidak mencukupi untuk ditambah!', 'error')
         const newItems = [...items]; newItems[existIdx].quantity += 1; newItems[existIdx].subtotal = newItems[existIdx].quantity * newItems[existIdx].unit_price; setItems(newItems)
       } else {
         const emptyIdx = items.findIndex(item => !item.product_id)
@@ -88,14 +90,26 @@ export default function InvoiceForm() {
         else setItems([...items, newItem])
       }
       setShowScanner(false)
-    } else showToast(`Barcode/SKU "${scannedCode}" tidak ditemukan.`, 'error')
+    } else showToast(`Barcode/SKU "${scannedCode}" tidak ditemukan atau stok habis.`, 'error')
   }
 
   function handleItemChange(index, field, value) {
-    const newItems = [...items]; newItems[index][field] = value
+    const newItems = [...items]; 
+    newItems[index][field] = value
     if (field === 'product_id') {
       const p = products.find(p => p.id === Number(value))
-      if (p) { newItems[index].unit_price = p.price; newItems[index].description = p.name }
+      if (p) { 
+        newItems[index].unit_price = p.price; 
+        newItems[index].description = p.name;
+        if (newItems[index].quantity === 0) newItems[index].quantity = 1;
+      }
+    }
+    if (field === 'quantity') {
+      const p = products.find(p => p.id === Number(newItems[index].product_id))
+      if (p && Number(value) > p.stock) {
+        showToast(`Maksimal stok ${p.name} adalah ${p.stock}`, 'error')
+        newItems[index].quantity = p.stock
+      }
     }
     newItems[index].subtotal = (Number(newItems[index].quantity) || 0) * (Number(newItems[index].unit_price) || 0)
     setItems(newItems)
@@ -148,7 +162,17 @@ export default function InvoiceForm() {
 
     setIsSubmitting(true)
     try {
-      const payload = { user_id: session.user.id, customer_id: customerId ? Number(customerId) : null, invoice_number: invoiceNumber, issue_date: issueDate, due_date: paymentMethod === 'hutang' ? (dueDate || null) : null, due_time: paymentMethod === 'hutang' ? (dueTime || null) : null, payment_method: paymentMethod, status: 'draft', subtotal, discount: safeDiscount, tax_percent: taxType === 'persen' ? safeTaxInput : 0, tax_amount: taxAmount, shipping: safeShipping, total: grandTotal, paid_amount: finalPaidAmount, notes: finalNotes }
+      let finalCustomerId = customerId ? Number(customerId) : null
+      if (!finalCustomerId) {
+        const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
+          user_id: session.user.id,
+          name: 'Pelanggan Umum'
+        }]).select().single()
+        if (custErr) throw custErr
+        finalCustomerId = newCust.id
+      }
+
+      const payload = { user_id: session.user.id, customer_id: finalCustomerId, invoice_number: invoiceNumber, issue_date: issueDate, due_date: paymentMethod === 'hutang' ? (dueDate || null) : null, due_time: paymentMethod === 'hutang' ? (dueTime || null) : null, payment_method: paymentMethod, status: 'draft', subtotal, discount: safeDiscount, tax_percent: taxType === 'persen' ? safeTaxInput : 0, tax_amount: taxAmount, shipping: safeShipping, total: grandTotal, paid_amount: finalPaidAmount, notes: finalNotes }
       const { data: invData, error } = await supabase.from('invoices').insert([payload]).select().single()
       if (error) throw error
 
@@ -172,6 +196,25 @@ export default function InvoiceForm() {
     }
   }
 
+  // Data untuk kustom Select
+  const customerOptions = [
+    { value: '', label: 'Pelanggan Umum (Otomatis)' },
+    ...customers.map(c => ({ value: String(c.id), label: `${c.name} ${c.customer_code ? `(${c.customer_code})` : ''}` }))
+  ]
+  const productOptions = [
+    { value: '', label: '-- Pilih Produk --' },
+    ...products.map(p => ({ value: String(p.id), label: `${p.name} (Stok: ${p.stock})` }))
+  ]
+  const discountTypeOptions = [{ value: 'persen', label: '%' }, { value: 'nominal', label: 'Rp' }]
+  const taxTypeOptions = [{ value: 'persen', label: '%' }, { value: 'nominal', label: 'Rp' }]
+  const paymentMethodOptions = [
+    { value: 'cash', label: 'Cash / Tunai' },
+    { value: 'qris', label: 'QRIS (Lunas)' },
+    { value: 'split', label: 'Split Payment (Gabungan)' },
+    { value: 'hutang', label: 'Hutang / Tempo' }
+  ]
+  const splitMethodOptions = [{ value: 'cash', label: 'Cash' }, { value: 'qris', label: 'QRIS' }]
+
   return (
     <div>
       {showScanner && <BarcodeScanner onScan={handleBarcodeScan} onClose={() => setShowScanner(false)} />}
@@ -180,7 +223,15 @@ export default function InvoiceForm() {
       <form onSubmit={handleSubmit}>
         <div className="card" style={{ marginBottom: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-            <div><label>Pelanggan</label><select value={customerId} onChange={e => setCustomerId(e.target.value)}><option value="">-- Pelanggan Umum --</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            <div>
+              <label>Pelanggan</label>
+              <Select 
+                options={customerOptions} 
+                value={customerId} 
+                onChange={setCustomerId} 
+                placeholder="Pelanggan Umum (Otomatis)" 
+              />
+            </div>
             <div><label>No. Invoice</label><input required value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} /></div>
             <div><label>Tanggal Terbit</label><input type="date" required value={issueDate} onChange={e => setIssueDate(e.target.value)} /></div>
           </div>
@@ -191,16 +242,36 @@ export default function InvoiceForm() {
             <h3 style={{ margin: 0 }}>Daftar Barang</h3>
             <Button type="button" variant="primary" onClick={() => setShowScanner(true)}><FaBarcode /> Scan Barcode</Button>
           </div>
-          <div style={{ overflowX: 'auto', width: '100%' }}>
+          <div className="table-responsive">
             <table style={{ minWidth: 600 }}>
-              <thead><tr><th>Produk</th><th>Deskripsi</th><th width="100" style={{ textAlign: 'center' }}>Qty</th><th width="150">Harga</th><th width="150">Subtotal</th><th width="50"></th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Produk</th>
+                  <th width="200">Deskripsi</th>
+                  <th width="100" style={{ textAlign: 'center' }}>Qty</th>
+                  <th width="150">Harga</th>
+                  <th width="150">Subtotal</th>
+                  <th width="50"></th>
+                </tr>
+              </thead>
               <tbody>
                 {items.map((item, index) => (
                   <tr key={index}>
-                    <td><select value={item.product_id} onChange={e => handleItemChange(index, 'product_id', e.target.value)}><option value="">-- Pilih Produk --</option>{products.map(p => <option key={p.id} value={p.id}>{p.name} (Stok: {p.stock})</option>)}</select></td>
-                    <td><input value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} placeholder="Deskripsi" /></td>
-                    <td><input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 16, padding: '12px 8px' }} /></td>
-                    <td><input type="number" min="0" value={item.unit_price} onChange={e => handleItemChange(index, 'unit_price', e.target.value)} /></td>
+                    <td>
+                      <Select 
+                        options={productOptions} 
+                        value={item.product_id} 
+                        onChange={val => handleItemChange(index, 'product_id', val)} 
+                        placeholder="-- Pilih Produk --" 
+                      />
+                    </td>
+                    <td>
+                      <input type="text" value={item.description} readOnly placeholder="Pilih produk..." style={{ width: '100%', backgroundColor: 'var(--bg-color)', color: 'var(--text-muted)', cursor: 'not-allowed', border: '1px dashed var(--border-color)' }} />
+                    </td>
+                    <td><input type="number" min="0" max={products.find(p => p.id === Number(item.product_id))?.stock || 99} value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 16, padding: '12px 8px' }} /></td>
+                    <td>
+                      <input type="number" value={item.unit_price} readOnly style={{ width: '100%', backgroundColor: 'var(--bg-color)', color: 'var(--text-muted)', cursor: 'not-allowed', border: '1px dashed var(--border-color)' }} />
+                    </td>
                     <td>{formatRupiah(item.subtotal)}</td>
                     <td><Button type="button" variant="danger" onClick={() => items.length > 1 && setItems(items.filter((_, i) => i !== index))} style={{ padding: '8px 12px' }}>X</Button></td>
                   </tr>
@@ -208,7 +279,7 @@ export default function InvoiceForm() {
               </tbody>
             </table>
           </div>
-          <Button type="button" variant="secondary" onClick={() => setItems([...items, { product_id: '', description: '', quantity: 1, unit_price: '', subtotal: 0 }])} style={{ marginTop: 12 }}><FaPlus /> Tambah Baris</Button>
+          <Button type="button" variant="secondary" onClick={() => setItems([...items, { product_id: '', description: '', quantity: 0, unit_price: '', subtotal: 0 }])} style={{ marginTop: 12 }}><FaPlus /> Tambah Baris</Button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
@@ -216,13 +287,13 @@ export default function InvoiceForm() {
             <h3 style={{ marginTop: 0 }}>Biaya Tambahan</h3>
             <label>Diskon</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <select value={discountType} onChange={e => setDiscountType(e.target.value)} style={{ width: '80px' }}><option value="persen">%</option><option value="nominal">Rp</option></select>
+              <Select options={discountTypeOptions} value={discountType} onChange={setDiscountType} style={{ width: '80px' }} />
               <input type="text" placeholder="0" value={discountType === 'nominal' ? formatNumberInput(discount) : discount} onChange={e => setDiscount(discountType === 'nominal' ? e.target.value.replace(/\./g, '') : e.target.value)} style={{ flex: 1 }} />
             </div>
             
             <label>Pajak / Biaya Admin</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <select value={taxType} onChange={e => setTaxType(e.target.value)} style={{ width: '80px' }}><option value="persen">%</option><option value="nominal">Rp</option></select>
+              <Select options={taxTypeOptions} value={taxType} onChange={setTaxType} style={{ width: '80px' }} />
               <input type="text" placeholder="0" value={taxType === 'nominal' ? formatNumberInput(taxValue) : taxValue} onChange={e => setTaxValue(taxType === 'nominal' ? e.target.value.replace(/\./g, '') : e.target.value)} style={{ flex: 1 }} />
             </div>
             
@@ -230,12 +301,7 @@ export default function InvoiceForm() {
             <input type="text" placeholder="0" value={formatNumberInput(shipping)} onChange={e => setShipping(e.target.value.replace(/\./g, ''))} style={{ marginBottom: 24 }} />
 
             <h3>Metode Pembayaran</h3>
-            <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={{ marginBottom: 12, fontWeight: 'bold' }}>
-              <option value="cash">Cash / Tunai</option>
-              <option value="qris">QRIS (Lunas)</option>
-              <option value="split">Split Payment (Gabungan)</option>
-              <option value="hutang">Hutang / Tempo</option>
-            </select>
+            <Select options={paymentMethodOptions} value={paymentMethod} onChange={setPaymentMethod} style={{ marginBottom: 12, fontWeight: 'bold' }} />
 
             {paymentMethod === 'cash' && (
               <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: 16, borderRadius: 8, border: '1px solid #bbf7d0' }}>
@@ -250,7 +316,7 @@ export default function InvoiceForm() {
                 <label style={{ color: '#ec4899', fontWeight: 'bold' }}>Rincian Pembayaran Gabungan</label>
                 {splitPayments.map((sp, idx) => (
                   <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                    <select value={sp.method} onChange={e => handleSplitChange(idx, 'method', e.target.value)} style={{ width: '100px' }}><option value="cash">Cash</option><option value="qris">QRIS</option></select>
+                    <Select options={splitMethodOptions} value={sp.method} onChange={val => handleSplitChange(idx, 'method', val)} style={{ width: '100px' }} />
                     <input type="text" placeholder="Nominal" value={formatNumberInput(sp.amount)} onChange={e => handleSplitChange(idx, 'amount', e.target.value.replace(/\./g, ''))} style={{ flex: 1 }} />
                     {splitPayments.length > 1 && <Button type="button" variant="danger" onClick={() => handleRemoveSplit(idx)} style={{ padding: '8px' }}><FaTrash /></Button>}
                   </div>
@@ -266,7 +332,7 @@ export default function InvoiceForm() {
               <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: 16, borderRadius: 8, border: '1px solid #fecaca' }}>
                 <label style={{ color: '#ef4444' }}>DP / Dibayar Sekarang</label>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <select value={dpType} onChange={e => setDpType(e.target.value)} style={{ width: '80px' }}><option value="nominal">Rp</option><option value="persen">%</option></select>
+                  <Select options={[{value:'nominal', label:'Rp'}, {value:'persen', label:'%'}]} value={dpType} onChange={setDpType} style={{ width: '80px' }} />
                   <input type="text" placeholder="0" value={dpType === 'nominal' ? formatNumberInput(paidAmount) : paidAmount} onChange={e => setPaidAmount(dpType === 'nominal' ? e.target.value.replace(/\./g, '') : e.target.value)} style={{ flex: 1 }} />
                 </div>
                 {dpType === 'persen' && safeDpInput > 0 && <p style={{ margin: '-4px 0 12px', fontSize: 12, color: '#ef4444' }}>Nominal: <strong>{formatRupiah(dpAmount)}</strong></p>}
