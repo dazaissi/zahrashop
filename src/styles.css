@@ -227,3 +227,26 @@ tr:hover td { background-color: #fce7f3; box-shadow: inset 0 0 0 9999px rgba(236
   .fab-btn { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; font-size: 24px; position: absolute; top: -28px; left: 50%; transform: translateX(-50%); box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4); border: 4px solid var(--bg-color); text-decoration: none; transition: transform 0.3s; }
   .fab-btn:active { transform: translateX(-50%) scale(0.9); }
 }
+
+/* --- PERBAIKAN SCROLL TABEL DI HP --- */
+@media (max-width: 768px) {
+  /* 1. Matikan efek membesar di HP agar tidak jitter/berlebihan saat disentuh */
+  tr:hover td, .card:hover, .stat-card:hover {
+    transform: none !important; 
+    box-shadow: none !important;
+  }
+
+  /* 2. Buat geseran tabel sangat mulus dan tidak memantul */
+  .table-responsive {
+    overscroll-behavior-x: contain; /* Mencegah seluruh halaman ikut bergeser */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    padding-bottom: 8px;
+  }
+
+  /* 3. Kecilkan sedikit ukuran font dan padding tabel agar tidak terlalu lebar */
+  td, th {
+    padding: 12px 10px;
+    font-size: 13px;
+  }
+}
