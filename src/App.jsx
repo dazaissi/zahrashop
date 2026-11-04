@@ -1,8 +1,10 @@
+
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { UIProvider } from './context/UIContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
+
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Customers from './pages/Customers'
@@ -15,7 +17,7 @@ import Reports from './pages/Reports'
 import Expenses from './pages/Expenses'
 import Team from './pages/Team'
 import ActivityLog from './pages/ActivityLog'
-import PublicInvoice from './pages/PublicInvoice' // <-- Import PublicInvoice
+import PublicInvoice from './pages/PublicInvoice'
 import StockOpname from './pages/StockOpname'
 
 export default function App() {
@@ -23,28 +25,53 @@ export default function App() {
     <AuthProvider>
       <UIProvider>
         <Routes>
+          {/* Halaman Login */}
           <Route path="/login" element={<Login />} />
-          
-          {/* RUTE PUBLIK (Bisa diakses tanpa login) */}
-          <Route path="/public-invoice/:number" element={<PublicInvoice />} />
 
-          {/* RUTE PROTECTED (Wajib Login) */}
-          <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* Invoice Publik */}
+          <Route
+            path="/public-invoice/:number/:token"
+            element={<PublicInvoice />}
+          />
+
+          {/* Halaman yang dapat diakses Owner dan Admin */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route
+              path="/"
+              element={<Navigate to="/dashboard" replace />}
+            />
+
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/products" element={<Products />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/invoices/new" element={<InvoiceForm />} />
             <Route path="/invoices/:id" element={<InvoiceDetail />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/expenses" element={<Expenses />} />
             <Route path="/stock-opname" element={<StockOpname />} />
-            <Route path="/team" element={<Team />} />
-            <Route path="/activity-logs" element={<ActivityLog />} />
-            <Route path="/settings" element={<Settings />} />
+
+            {/* Halaman khusus Owner */}
+            <Route
+              element={<ProtectedRoute allowedRoles={['owner']} />}
+            >
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/expenses" element={<Expenses />} />
+              <Route path="/team" element={<Team />} />
+              <Route path="/activity-logs" element={<ActivityLog />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+
+          {/* Halaman tidak ditemukan */}
+          <Route
+            path="*"
+            element={<Navigate to="/" replace />}
+          />
         </Routes>
       </UIProvider>
     </AuthProvider>
