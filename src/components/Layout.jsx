@@ -3,7 +3,11 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { supabase } from '../supabaseClient'
-import { FaBars, FaTimes, FaBell, FaCheckDouble, FaChartPie, FaFileInvoiceDollar, FaUsers, FaBoxOpen, FaMoneyBillWave, FaChartLine, FaUserTie, FaHistory, FaCog, FaMoon, FaSun, FaWhatsapp, FaUserCircle, FaClipboardList, FaPlus } from 'react-icons/fa'
+import { 
+  FaBars, FaTimes, FaBell, FaCheckDouble, FaChartPie, FaFileInvoiceDollar, 
+  FaUsers, FaBoxOpen, FaMoneyBillWave, FaChartLine, FaUserTie, 
+  FaHistory, FaCog, FaMoon, FaSun, FaWhatsapp, FaUserCircle, FaClipboardList, FaPlus, FaTrash, FaCheck 
+} from 'react-icons/fa'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const allMenus = [
@@ -26,10 +30,14 @@ export default function Layout() {
   
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [showNotif, setShowNotif] = useState(false)
-  const [notifications, setNotifications] = useState([])
-  const [readNotifs, setReadNotifs] = useState(() => JSON.parse(localStorage.getItem('read_notifs')) || [])
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
   
+  // State Notifikasi
+  const [activeNotifs, setActiveNotifs] = useState([]) // Notif yang belum dibaca
+  const [historyNotifs, setHistoryNotifs] = useState(() => JSON.parse(localStorage.getItem('notif_history')) || [])
+  const [deletedNotifs, setDeletedNotifs] = useState(() => JSON.parse(localStorage.getItem('notif_deleted')) || [])
+  const [notifTab, setNotifTab] = useState('active') // 'active' atau 'history'
+
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
   const [ownerPhone, setOwnerPhone] = useState('')
   const [userRole, setUserRole] = useState('admin')
   const [userName, setUserName] = useState('Pengguna')
@@ -54,7 +62,7 @@ export default function Layout() {
           setUserName(googleName)
         })
     }
-  }, [session, readNotifs])
+  }, [session])
 
   async function fetchNotifications() {
     const { data: prod } = await supabase.from('products').select('*')
@@ -67,21 +75,44 @@ export default function Layout() {
       id: `inv-${i.id}-status-${i.status}`, type: 'invoice', invNumber: i.invoice_number, customer: i.customers, total: i.total - i.paid_amount,
       message: `Invoice ${i.invoice_number} (${i.customers?.name || 'Umum'}) belum lunas`
     }))
-    setNotifications([...kritis, ...tagihan].filter(n => !readNotifs.includes(n.id)))
+    
+    // Ambil yang belum masuk di history dan belum dihapus
+    const combined = [...kritis, ...tagihan]
+    const filtered = combined.filter(n => !historyNotifs.some(h => h.id === n.id) && !deletedNotifs.includes(n.id))
+    setActiveNotifs(filtered)
   }
 
   function handleMarkAllRead() {
-    if (notifications.length === 0) return
-    const newReadNotifs = [...readNotifs, ...notifications.map(n => n.id)]
-    setReadNotifs(newReadNotifs)
-    localStorage.setItem('read_notifs', JSON.stringify(newReadNotifs))
-    setNotifications([])
-    setShowNotif(false)
+    if (activeNotifs.length === 0) return
+    const newHistory = [...historyNotifs, ...activeNotifs]
+    setHistoryNotifs(newHistory)
+    localStorage.setItem('notif_history', JSON.stringify(newHistory))
+    setActiveNotifs([])
+  }
+
+  function handleReadOne(notif) {
+    if (historyNotifs.some(h => h.id === notif.id)) return
+    const newHistory = [...historyNotifs, notif]
+    setHistoryNotifs(newHistory)
+    localStorage.setItem('notif_history', JSON.stringify(newHistory))
+    setActiveNotifs(prev => prev.filter(n => n.id !== notif.id))
+  }
+
+  function handleDelete(notifId) {
+    const newDeleted = [...deletedNotifs, notifId]
+    setDeletedNotifs(newDeleted)
+    localStorage.setItem('notif_deleted', JSON.stringify(newDeleted))
+    setActiveNotifs(prev => prev.filter(n => n.id !== notifId))
+    
+    // Hapus dari history juga
+    const newHistory = historyNotifs.filter(h => h.id !== notifId)
+    setHistoryNotifs(newHistory)
+    localStorage.setItem('notif_history', JSON.stringify(newHistory))
   }
 
   function getStockWaReminder() {
     if (!ownerPhone) return showToast('Isi No. HP di menu Pengaturan terlebih dahulu!', 'error')
-    const listStok = notifications.filter(n => n.type === 'stok').map(n => `- ${n.name} (Sisa ${n.stock})`).join('\n')
+    const listStok = activeNotifs.filter(n => n.type === 'stok').map(n => `- ${n.name} (Sisa ${n.stock})`).join('\n')
     let phone = ownerPhone.replace(/\D/g, '')
     if (phone.startsWith('0')) phone = '62' + phone.slice(1)
     const pesan = `Halo Owner, ini adalah pengingat otomatis dari sistem.\n\nStok barang berikut sudah menipis dan perlu segera di-restock:\n${listStok}`
@@ -99,16 +130,44 @@ export default function Layout() {
   const visibleMenus = allMenus.filter(m => m.roles.includes(userRole))
 
   const BrandLogo = () => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-    <img 
-      src={`${import.meta.env.BASE_URL}logo.png`} 
-      alt="Logo" 
-      style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8 }} 
-      onError={(e) => { e.target.style.display = 'none' }} 
-    />
-    <h2 style={{ margin: 0 }}>Zahrashop</h2>
-  </div>
-)
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8 }} onError={(e) => { e.target.style.display = 'none' }} />
+      <h2 style={{ margin: 0 }}>Zahrashop</h2>
+    </div>
+  )
+
+  const renderNotifItem = (n, isHistory = false) => (
+    <div key={n.id} style={{ fontSize: 13, padding: '10px 0', borderBottom: '1px solid var(--border-color)', color: n.type === 'stok' ? '#ef4444' : '#3b82f6', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <span>{n.type === 'stok' ? '⚠️' : '📄'}</span>
+          <span style={{ lineHeight: 1.4, color: 'var(--text-main)' }}>{n.message}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {!isHistory && (
+            <button onClick={() => handleReadOne(n)} title="Tandai Dibaca" style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: 4 }}>
+              <FaCheck size={12} />
+            </button>
+          )}
+          <button onClick={() => handleDelete(n.id)} title="Hapus" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}>
+            <FaTrash size={12} />
+          </button>
+        </div>
+      </div>
+      
+      {/* Tombol Aksi WA (Hanya di tab Aktif) */}
+      {!isHistory && n.type === 'stok' && (
+        <button onClick={getStockWaReminder} style={{ alignSelf: 'flex-start', background: '#25D366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}>
+          <FaWhatsapp /> Ingatkan Restock
+        </button>
+      )}
+      {!isHistory && n.type === 'invoice' && (
+        <button onClick={() => getInvoiceWaReminder(n)} style={{ alignSelf: 'flex-start', background: '#25D366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}>
+          <FaWhatsapp /> Tagih Pelanggan
+        </button>
+      )}
+    </div>
+  )
 
   return (
     <div className="app">
@@ -116,7 +175,7 @@ export default function Layout() {
         <BrandLogo />
         <button onClick={() => setShowNotif(!showNotif)} style={{ background: 'transparent', border: 'none', color: 'white', position: 'relative' }}>
           <FaBell size={20} />
-          {notifications.length > 0 && <span style={{ width: 8, height: 8, background: '#fbbf24', borderRadius: '50%', position: 'absolute', top: 0, right: -2 }}></span>}
+          {activeNotifs.length > 0 && <span style={{ width: 8, height: 8, background: '#fbbf24', borderRadius: '50%', position: 'absolute', top: 0, right: -2 }}></span>}
         </button>
       </div>
 
@@ -146,6 +205,45 @@ export default function Layout() {
         <button onClick={() => setIsDark(!isDark)} style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, transition: 'all 0.3s', fontWeight: 'bold' }}>
           {isDark ? <><FaMoon /> Mode Gelap</> : <><FaSun /> Mode Terang</>}
         </button>
+
+        {/* NOTIFIKASI */}
+        <div style={{ position: 'relative', marginBottom: 16 }}>
+          <button onClick={() => setShowNotif(!showNotif)} style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 'bold', transition: 'all 0.3s' }}>
+            <FaBell size={18} /> Notifikasi ({activeNotifs.length})
+            {activeNotifs.length > 0 && <span style={{ width: 10, height: 10, background: '#fbbf24', borderRadius: '50%', position: 'absolute', top: 10, right: 12, boxShadow: '0 0 0 2px #ec4899' }}></span>}
+          </button>
+          
+          {showNotif && (
+            <div style={{ position: 'absolute', bottom: '100%', left: 0, width: '340px', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 16, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', maxHeight: 400, display: 'flex', flexDirection: 'column', zIndex: 1000, right: 0, margin: 'auto' }}>
+              
+              {/* TABS AKTIF & RIWAYAT */}
+              <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid var(--border-color)', paddingBottom: 8, marginBottom: 8 }}>
+                <button onClick={() => setNotifTab('active')} style={{ background: notifTab === 'active' ? 'var(--primary)' : 'transparent', color: notifTab === 'active' ? 'white' : 'var(--text-muted)', border: 'none', padding: '6px 12px', borderRadius: 6, fontWeight: 'bold', fontSize: 12, cursor: 'pointer' }}>Aktif</button>
+                <button onClick={() => setNotifTab('history')} style={{ background: notifTab === 'history' ? 'var(--primary)' : 'transparent', color: notifTab === 'history' ? 'white' : 'var(--text-muted)', border: 'none', padding: '6px 12px', borderRadius: 6, fontWeight: 'bold', fontSize: 12, cursor: 'pointer' }}>Riwayat</button>
+                <div style={{ flex: 1 }}></div>
+                {notifTab === 'active' && activeNotifs.length > 0 && (
+                  <button onClick={handleMarkAllRead} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}>
+                    <FaCheckDouble /> Baca Semua
+                  </button>
+                )}
+              </div>
+
+              {/* LIST NOTIFIKASI */}
+              <div style={{ overflowY: 'auto', flex: 1 }}>
+                {notifTab === 'active' ? (
+                  activeNotifs.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Tidak ada notifikasi baru.</p>
+                  ) : activeNotifs.map(n => renderNotifItem(n, false))
+                ) : (
+                  historyNotifs.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Belum ada riwayat notifikasi.</p>
+                  ) : historyNotifs.slice().reverse().map(n => renderNotifItem(n, true))
+                )}
+              </div>
+
+            </div>
+          )}
+        </div>
 
         <button onClick={async () => { if (await showConfirm('Konfirmasi', 'Yakin ingin keluar dari aplikasi?')) signOut() }} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '12px', borderRadius: 10, fontWeight: 'bold', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s' }}>
           Keluar
@@ -181,28 +279,6 @@ export default function Layout() {
           <FaBars size={20} /> <span>Menu</span>
         </button>
       </div>
-
-      {showNotif && (
-        <div className="mobile-overlay" onClick={() => setShowNotif(false)} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 60 }}>
-          <div style={{ background: 'var(--card-bg)', width: '90%', borderRadius: 12, padding: 16, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', zIndex: 1001 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 'bold', color: 'var(--text-main)' }}>Pemberitahuan</span>
-              {notifications.length > 0 && (
-                <button onClick={handleMarkAllRead} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}><FaCheckDouble /> Tandai Dibaca</button>
-              )}
-            </div>
-            {notifications.length === 0 ? <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Tidak ada notifikasi baru.</p> : (
-              notifications.map((n) => (
-                <div key={n.id} style={{ fontSize: 13, padding: '10px 0', borderBottom: '1px solid var(--border-color)', color: n.type === 'stok' ? '#ef4444' : '#3b82f6', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', gap: 6 }}><span>{n.type === 'stok' ? '⚠️' : '📄'}</span><span style={{ lineHeight: 1.4, color: 'var(--text-main)' }}>{n.message}</span></div>
-                  {n.type === 'stok' && <button onClick={getStockWaReminder} style={{ alignSelf: 'flex-start', background: '#25D366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}><FaWhatsapp /> Ingatkan Restock</button>}
-                  {n.type === 'invoice' && <button onClick={() => getInvoiceWaReminder(n)} style={{ alignSelf: 'flex-start', background: '#25D366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}><FaWhatsapp /> Tagih Pelanggan</button>}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
