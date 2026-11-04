@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { formatRupiah } from '../lib/format'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
-import { FaChartPie, FaMoneyBillWave, FaWallet, FaHandHoldingUsd } from 'react-icons/fa'
+import { FaChartPie, FaMoneyBillWave, FaWallet, FaHandHoldingUsd, FaArrowRight, FaBoxOpen } from 'react-icons/fa'
 
 const COLORS = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b']
 
@@ -13,7 +13,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   
   // State Data
-  const [summary, setSummary] = useState({ omzet: 0, pengeluaran: 0, laba: 0, piutang: 0 })
+  const [summary, setSummary] = useState({ omzet: 0, pengeluaran: 0, laba: 0, piutang: 0, transaksi: 0, barangTerjual: 0 })
   const [chartKeuangan, setChartKeuangan] = useState([])
   const [topProducts, setTopProducts] = useState([])
   const [paymentMethods, setPaymentMethods] = useState([])
@@ -24,14 +24,14 @@ export default function Dashboard() {
     const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]
   })
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
-  const [chartType, setChartType] = useState('keuangan') // 'keuangan' | 'produk' | 'metode'
+  const [chartType, setChartType] = useState('keuangan')
 
   useEffect(() => { if (session) loadData() }, [session, startDate, endDate])
 
   async function loadData() {
     setLoading(true)
     
-    // 1. Ambil Data Invoice sesuai Filter
+    // 1. Ambil Data Invoice
     const { data: invData } = await supabase
       .from('invoices')
       .select('*, invoice_items(*, products(name))')
@@ -39,14 +39,14 @@ export default function Dashboard() {
       .lte('issue_date', endDate)
       .neq('status', 'draft')
 
-    // 2. Ambil Data Pengeluaran sesuai Filter
+    // 2. Ambil Data Pengeluaran
     const { data: expData } = await supabase
       .from('expenses')
       .select('*')
       .gte('date', startDate)
       .lte('date', endDate)
 
-    // 3. Ambil Data Produk (untuk cek stok kritis)
+    // 3. Ambil Data Produk
     const { data: prodData } = await supabase.from('products').select('*')
 
     if (!invData || !prodData || !expData) {
@@ -58,11 +58,11 @@ export default function Dashboard() {
     let totalOmzet = 0
     let totalPiutang = 0
     let totalPengeluaran = 0
-    let keuanganPerHari = {} // Menampung data omzet & pengeluaran per tanggal
+    let totalBarangTerjual = 0
+    let keuanganPerHari = {}
     let produkTerjual = {}
     let metodeBayar = {}
 
-    // A. Olah Data Invoice
     invData.forEach(inv => {
       const paid = Number(inv.paid_amount) || 0
       totalOmzet += paid
@@ -76,39 +76,36 @@ export default function Dashboard() {
       metodeBayar[method] = (metodeBayar[method] || 0) + 1
 
       inv.invoice_items.forEach(item => {
+        totalBarangTerjual += Number(item.quantity)
         const prodName = item.products?.name || item.description
         produkTerjual[prodName] = (produkTerjual[prodName] || 0) + Number(item.quantity)
       })
     })
 
-    // B. Olah Data Pengeluaran
     expData.forEach(exp => {
       totalPengeluaran += Number(exp.amount)
-      
       const tgl = exp.date
       if (!keuanganPerHari[tgl]) keuanganPerHari[tgl] = { tanggal: tgl.slice(5), omzet: 0, pengeluaran: 0 }
       keuanganPerHari[tgl].pengeluaran += Number(exp.amount)
     })
 
-    // C. Set Summary
-    const labaBersih = totalOmzet - totalPengeluaran
-    setSummary({ omzet: totalOmzet, pengeluaran: totalPengeluaran, laba: labaBersih, piutang: totalPiutang })
+    setSummary({ 
+      omzet: totalOmzet, 
+      pengeluaran: totalPengeluaran, 
+      laba: totalOmzet - totalPengeluaran, 
+      piutang: totalPiutang,
+      transaksi: invData.length,
+      barangTerjual: totalBarangTerjual
+    })
 
-    // D. Format Chart Keuangan (Urutkan berdasarkan tanggal)
     const sortedDates = Object.keys(keuanganPerHari).sort((a, b) => new Date(a) - new Date(b))
     setChartKeuangan(sortedDates.map(date => keuanganPerHari[date]))
 
-    // E. Format Top 5 Produk Terlaris
     const sortedProducts = Object.entries(produkTerjual)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => ({ name, value }))
     setTopProducts(sortedProducts)
 
-    // F. Format Metode Pembayaran
     setPaymentMethods(Object.entries(metodeBayar).map(([name, value]) => ({ name, value })))
-
-    // G. Stok Kritis
     setKritis(prodData.filter(p => p.stock <= p.min_stock))
 
     setLoading(false)
@@ -120,6 +117,21 @@ export default function Dashboard() {
       <div className="skeleton" style={{ height: 100, marginBottom: 24 }}></div>
       <div className="skeleton" style={{ height: 400 }}></div>
     </div>
+  )
+
+  // Komponen Kartu yang bisa diklik
+  const ClickableCard = ({ to, title, value, icon, colorClass, textColor }) => (
+    <Link to={to} style={{ textDecoration: 'none' }}>
+      <div className={`stat-card ${colorClass}`} style={{ height: '100%', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {icon} <span>{title}</span>
+        </div>
+        <strong style={{ color: textColor, marginTop: 8 }}>{value}</strong>
+        <div style={{ position: 'absolute', bottom: 16, right: 16, opacity: 0.5 }}>
+          <FaArrowRight size={14} />
+        </div>
+      </div>
+    </Link>
   )
 
   return (
@@ -140,27 +152,51 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KARTU RINGKASAN (OMZET, PENGELUARAN, LABA, PIUTANG) */}
-      <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <div className="stat-card stat-green">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FaMoneyBillWave /> <span>Omzet</span></div>
-          <strong>{formatRupiah(summary.omzet)}</strong>
-        </div>
-        <div className="stat-card stat-red">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FaWallet /> <span>Pengeluaran</span></div>
-          <strong>{formatRupiah(summary.pengeluaran)}</strong>
-        </div>
-        <div className="stat-card stat-blue">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FaChartPie /> <span>Laba Bersih</span></div>
-          <strong style={{ color: summary.laba >= 0 ? '#10b981' : '#ef4444' }}>{formatRupiah(summary.laba)}</strong>
-        </div>
-        <div className="stat-card" style={{ background: 'var(--card-bg)', borderColor: 'var(--border-color)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FaHandHoldingUsd /> <span>Piutang</span></div>
-          <strong style={{ color: '#f59e0b' }}>{formatRupiah(summary.piutang)}</strong>
-        </div>
+      {/* KARTU RINGKASAN (BISA DIKLIK) */}
+      <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+        <ClickableCard 
+          to="/invoices" 
+          title="Omzet" 
+          value={formatRupiah(summary.omzet)} 
+          icon={<FaMoneyBillWave />} 
+          colorClass="stat-green" 
+          textColor="#10b981" 
+        />
+        <ClickableCard 
+          to="/invoices" 
+          title="Piutang" 
+          value={formatRupiah(summary.piutang)} 
+          icon={<FaHandHoldingUsd />} 
+          colorClass="stat-blue" 
+          textColor="#f59e0b" 
+        />
+        <ClickableCard 
+          to="/expenses" 
+          title="Pengeluaran" 
+          value={formatRupiah(summary.pengeluaran)} 
+          icon={<FaWallet />} 
+          colorClass="stat-red" 
+          textColor="#ef4444" 
+        />
+        <ClickableCard 
+          to="/invoices" 
+          title="Total Transaksi" 
+          value={`${summary.transaksi} Invoice`} 
+          icon={<FaChartPie />} 
+          colorClass="" 
+          textColor="var(--text-main)" 
+        />
+        <ClickableCard 
+          to="/products" 
+          title="Barang Terjual" 
+          value={`${summary.barangTerjual} Pcs`} 
+          icon={<FaBoxOpen />} 
+          colorClass="" 
+          textColor="var(--text-main)" 
+        />
       </div>
 
-      {/* AREA GRAFIK YANG BISA DIGANTI-GANTI */}
+      {/* AREA GRAFIK */}
       <div className="card" style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <h3 style={{ margin: 0 }}>Analitik Bisnis</h3>
@@ -185,9 +221,7 @@ export default function Dashboard() {
                 <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(val) => `Rp ${val / 1000}k`} />
                 <Tooltip formatter={(value) => formatRupiah(value)} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                 <Legend verticalAlign="top" height={36} iconType="circle" />
-                {/* Batang Omzet */}
                 <Bar dataKey="omzet" name="Omzet" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} />
-                {/* Batang Pengeluaran */}
                 <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
               </BarChart>
             </ResponsiveContainer>
