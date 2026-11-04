@@ -1328,3 +1328,23 @@ tr:hover td {
     scrollbar-width: thin;
   }
 }
+
+.custom-select-menu {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-select-option {
+  padding: 14px 16px;
+  min-height: 46px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.custom-select-option:active {
+  background: var(--hover-bg, rgba(128, 128, 128, 0.15));
+}
