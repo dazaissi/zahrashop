@@ -122,6 +122,7 @@ export default function Products() {
         <h3>{id ? 'Edit Produk' : 'Tambah Produk Baru'}</h3>
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
           <input required placeholder="Nama Produk *" value={name} onChange={e => setName(e.target.value)} />
+          
           <div style={{ display: 'flex', gap: 8 }}>
             <input placeholder="SKU / Kode Barcode" value={sku} onChange={e => setSku(e.target.value)} style={{ flex: 1 }} />
             <button 
@@ -133,14 +134,17 @@ export default function Products() {
               <FaBarcode size={18} /> Scan
             </button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+          {/* Menggunakan auto-fit agar form otomatis menumpuk ke bawah di HP */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
             <input required type="number" placeholder="Harga Jual (Rp) *" value={price} onChange={e => setPrice(e.target.value)} />
             <input type="number" placeholder="Harga Modal/HPP (Rp)" value={cost} onChange={e => setCost(e.target.value)} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
             <input required type="number" placeholder="Stok Saat Ini *" value={stock} onChange={e => setStock(e.target.value)} />
             <input type="number" placeholder="Batas Stok Menipis" value={minStock} onChange={e => setMinStock(e.target.value)} />
           </div>
+          
           <div style={{ display: 'flex', gap: 8 }}>
             <Button type="submit" variant="solid" disabled={isSubmitting}>{isSubmitting ? 'Menyimpan...' : 'Simpan Produk'}</Button>
             {id && <Button type="button" variant="secondary" onClick={resetForm}>Batal</Button>}
@@ -149,7 +153,8 @@ export default function Products() {
       </div>
 
       {loading ? <div className="skeleton" style={{ height: 200 }}></div> : (
-        <div style={{ overflowX: 'auto', width: '100%' }}>
+        // Tabel dibungkus dengan class responsive agar bisa digeser di HP
+        <div className="table-responsive">
           <table>
             <thead><tr><th>Nama Produk</th><th>Harga Jual</th><th>Stok</th><th>Aksi</th></tr></thead>
             <tbody>

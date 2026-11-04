@@ -36,7 +36,7 @@ export default function Invoices() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <h1 style={{ margin: 0 }}>Daftar Invoice</h1>
         <Link to="/invoices/new" style={{ textDecoration: 'none' }}>
           <Button variant="solid" style={{ padding: '12px 24px' }}><FaPlus style={{ marginRight: 6 }} /> Buat Invoice</Button>
@@ -45,35 +45,38 @@ export default function Invoices() {
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? <div className="skeleton" style={{ height: 300, width: '100%' }}></div> : (
-          <table>
-            <thead>
-              <tr><th>No. Invoice</th><th>Pelanggan</th><th>Tanggal</th><th>Total</th><th>Status</th><th>Aksi</th></tr>
-            </thead>
-            <tbody>
-              {invoices.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '60px 20px' }}>
-                    <FaFileInvoiceDollar size={48} style={{ color: 'var(--primary)', opacity: 0.2, marginBottom: 16 }} />
-                    <h3 style={{ margin: '0 0 8px', color: 'var(--text-muted)' }}>Belum ada invoice</h3>
-                    <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 14 }}>Invoice yang kamu buat akan muncul di sini.</p>
-                  </td>
-                </tr>
-              ) : invoices.map(inv => (
-                <tr key={inv.id}>
-                  <td><strong>{inv.invoice_number}</strong></td>
-                  <td>{inv.customers?.name || 'Umum'}</td>
-                  <td>{formatTanggal(inv.issue_date)}</td>
-                  <td><strong>{formatRupiah(inv.total)}</strong></td>
-                  <td>{getStatusBadge(inv.status)}</td>
-                  <td>
-                    <Link to={`/invoices/${inv.id}`} style={{ textDecoration: 'none' }}>
-                      <Button variant="primary"><FaEye /> Detail</Button>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          // Tabel dibungkus dengan class responsive agar bisa digeser di HP
+          <div className="table-responsive">
+            <table>
+              <thead>
+                <tr><th>No. Invoice</th><th>Pelanggan</th><th>Tanggal</th><th>Total</th><th>Status</th><th>Aksi</th></tr>
+              </thead>
+              <tbody>
+                {invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '60px 20px' }}>
+                      <FaFileInvoiceDollar size={48} style={{ color: 'var(--primary)', opacity: 0.2, marginBottom: 16 }} />
+                      <h3 style={{ margin: '0 0 8px', color: 'var(--text-muted)' }}>Belum ada invoice</h3>
+                      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 14 }}>Invoice yang kamu buat akan muncul di sini.</p>
+                    </td>
+                  </tr>
+                ) : invoices.map(inv => (
+                  <tr key={inv.id}>
+                    <td><strong>{inv.invoice_number}</strong></td>
+                    <td>{inv.customers?.name || 'Umum'}</td>
+                    <td>{formatTanggal(inv.issue_date)}</td>
+                    <td><strong>{formatRupiah(inv.total)}</strong></td>
+                    <td>{getStatusBadge(inv.status)}</td>
+                    <td>
+                      <Link to={`/invoices/${inv.id}`} style={{ textDecoration: 'none' }}>
+                        <Button variant="primary"><FaEye /> Detail</Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
