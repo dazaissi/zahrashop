@@ -3,18 +3,18 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { supabase } from '../supabaseClient'
-import { FaBars, FaTimes, FaBell, FaCheckDouble, FaChartPie, FaFileInvoiceDollar, FaUsers, FaBoxOpen, FaMoneyBillWave, FaChartLine, FaUserTie, FaHistory, FaCog, FaMoon, FaSun, FaWhatsapp } from 'react-icons/fa'
+import { FaBars, FaTimes, FaBell, FaCheckDouble, FaChartPie, FaFileInvoiceDollar, FaUsers, FaBoxOpen, FaMoneyBillWave, FaChartLine, FaUserTie, FaHistory, FaCog, FaMoon, FaSun, FaWhatsapp, FaUserCircle } from 'react-icons/fa'
 
 const allMenus = [
   { to: '/dashboard', label: 'Dashboard', icon: <FaChartPie />, roles: ['owner', 'admin'] },
   { to: '/invoices', label: 'Invoice', icon: <FaFileInvoiceDollar />, roles: ['owner', 'admin'] },
   { to: '/customers', label: 'Pelanggan', icon: <FaUsers />, roles: ['owner', 'admin'] },
   { to: '/products', label: 'Produk & Stok', icon: <FaBoxOpen />, roles: ['owner', 'admin'] },
-  { to: '/expenses', label: 'Pengeluaran', icon: <FaMoneyBillWave />, roles: ['owner'] }, // Hanya Owner
-  { to: '/reports', label: 'Laporan', icon: <FaChartLine />, roles: ['owner'] }, // Hanya Owner
-  { to: '/team', label: 'Tim & Karyawan', icon: <FaUserTie />, roles: ['owner'] }, // Hanya Owner
-  { to: '/activity-logs', label: 'Riwayat', icon: <FaHistory />, roles: ['owner'] }, // Hanya Owner
-  { to: '/settings', label: 'Pengaturan', icon: <FaCog />, roles: ['owner'] }, // Hanya Owner
+  { to: '/expenses', label: 'Pengeluaran', icon: <FaMoneyBillWave />, roles: ['owner'] },
+  { to: '/reports', label: 'Laporan', icon: <FaChartLine />, roles: ['owner'] },
+  { to: '/team', label: 'Tim & Karyawan', icon: <FaUserTie />, roles: ['owner'] },
+  { to: '/activity-logs', label: 'Riwayat', icon: <FaHistory />, roles: ['owner'] },
+  { to: '/settings', label: 'Pengaturan', icon: <FaCog />, roles: ['owner'] },
 ]
 
 export default function Layout() {
@@ -27,10 +27,12 @@ export default function Layout() {
   const [notifications, setNotifications] = useState([])
   const [readNotifs, setReadNotifs] = useState(() => JSON.parse(localStorage.getItem('read_notifs')) || [])
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
-  const [ownerPhone, setOwnerPhone] = useState('')
   
-  // State untuk Role User
-  const [userRole, setUserRole] = useState('admin') // Default sementara
+  // State Profil
+  const [ownerPhone, setOwnerPhone] = useState('')
+  const [userRole, setUserRole] = useState('admin')
+  const [userName, setUserName] = useState('Pengguna')
+  const [userAvatar, setUserAvatar] = useState('')
 
   useEffect(() => {
     if (isDark) document.documentElement.setAttribute('data-theme', 'dark')
@@ -41,17 +43,22 @@ export default function Layout() {
   useEffect(() => {
     if (session) {
       fetchNotifications()
-      // Ambil data role dan no hp
-      supabase.from('profiles').select('phone, role').eq('id', session.user.id).single()
+      // Ambil data profil dari database
+      supabase.from('profiles').select('phone, role, avatar_url').eq('id', session.user.id).single()
         .then(({ data }) => { 
           if (data?.phone) setOwnerPhone(data.phone) 
           if (data?.role) setUserRole(data.role) 
+          
+          // Prioritas Avatar: 1. Database, 2. Google, 3. Default
+          const googleAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture
+          setUserAvatar(data?.avatar_url || googleAvatar || '')
+          
+          // Nama User: Ambil dari Google (jika ada), atau Email
+          const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email.split('@')[0]
+          setUserName(googleName)
         })
     }
   }, [session, readNotifs])
-
-  // Filter menu berdasarkan role yang login
-  const visibleMenus = allMenus.filter(m => m.roles.includes(userRole))
 
   async function fetchNotifications() {
     const { data: prod } = await supabase.from('products').select('*')
@@ -93,6 +100,8 @@ export default function Layout() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(pesan)}`, '_blank')
   }
 
+  const visibleMenus = allMenus.filter(m => m.roles.includes(userRole))
+
   const BrandLogo = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8 }} onError={(e) => { e.target.style.display = 'none' }} />
@@ -109,13 +118,25 @@ export default function Layout() {
       </div>
 
       <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <BrandLogo />
           <button className="mobile-close-btn" onClick={() => setIsMobileOpen(false)}><FaTimes size={24} /></button>
         </div>
+
+        {/* USER PROFILE CARD */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: 'rgba(255,255,255,0.1)', borderRadius: 12, marginBottom: 24 }}>
+          {userAvatar ? (
+            <img src={userAvatar} alt="Avatar" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid white' }} />
+          ) : (
+            <FaUserCircle size={40} color="white" />
+          )}
+          <div style={{ overflow: 'hidden' }}>
+            <h4 style={{ margin: 0, color: 'white', fontSize: 14, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{userName}</h4>
+            <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: 12, textTransform: 'capitalize' }}>{userRole}</p>
+          </div>
+        </div>
         
-        <nav>
-          {/* Render menu yang sudah difilter */}
+        <nav style={{ overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
           {visibleMenus.map(m => (
             <Link key={m.to} to={m.to} className={loc.pathname.startsWith(m.to) ? 'active' : ''} onClick={() => setIsMobileOpen(false)}>
               <span style={{ fontSize: '18px' }}>{m.icon}</span>
@@ -124,18 +145,12 @@ export default function Layout() {
           ))}
         </nav>
 
-        <button 
-          onClick={() => setIsDark(!isDark)} 
-          style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, transition: 'all 0.2s', fontWeight: 'bold' }}
-        >
+        <button onClick={() => setIsDark(!isDark)} style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, transition: 'all 0.2s', fontWeight: 'bold' }}>
           {isDark ? <><FaMoon /> Mode Gelap</> : <><FaSun /> Mode Terang</>}
         </button>
 
         <div style={{ position: 'relative', marginBottom: 16 }}>
-          <button 
-            onClick={() => setShowNotif(!showNotif)} 
-            style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 'bold', transition: 'all 0.2s' }}
-          >
+          <button onClick={() => setShowNotif(!showNotif)} style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 'bold', transition: 'all 0.2s' }}>
             <FaBell size={18} /> Notifikasi ({notifications.length})
             {notifications.length > 0 && <span style={{ width: 10, height: 10, background: '#fbbf24', borderRadius: '50%', position: 'absolute', top: 10, right: 12, boxShadow: '0 0 0 2px #ec4899' }}></span>}
           </button>
