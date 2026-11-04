@@ -99,11 +99,16 @@ export default function Layout() {
   const visibleMenus = allMenus.filter(m => m.roles.includes(userRole))
 
   const BrandLogo = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8 }} onError={(e) => { e.target.style.display = 'none' }} />
-      <h2 style={{ margin: 0 }}>Zahrashop</h2>
-    </div>
-  )
+  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <img 
+      src={`${import.meta.env.BASE_URL}logo.png`} 
+      alt="Logo" 
+      style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8 }} 
+      onError={(e) => { e.target.style.display = 'none' }} 
+    />
+    <h2 style={{ margin: 0 }}>Zahrashop</h2>
+  </div>
+)
 
   return (
     <div className="app">

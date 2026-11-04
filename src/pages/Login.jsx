@@ -11,7 +11,12 @@ export default function Login() {
     <div className="login-wrap">
       <div className="login-card">
         <div className="login-header">
-          <img src="/logo.png" alt="Zahrashop Logo" style={{ height: 80, objectFit: 'contain', margin: '0 auto 16px' }} onError={(e) => { e.target.style.display = 'none' }} />
+          <img 
+  src={`${import.meta.env.BASE_URL}logo.png`} 
+  alt="Zahrashop Logo" 
+  style={{ height: 80, objectFit: 'contain', margin: '0 auto 16px' }} 
+  onError={(e) => { e.target.style.display = 'none' }} 
+/>
           <h1 className="login-logo">Zahrashop</h1>
           <p className="login-subtitle">Kelola invoice, pelanggan, dan stok bisnismu dengan lebih cerdas dan efisien.</p>
         </div>
