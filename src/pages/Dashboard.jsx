@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { formatRupiah } from '../lib/format'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
-import { FaChartPie, FaMoneyBillWave, FaWallet, FaHandHoldingUsd, FaArrowRight, FaBoxOpen } from 'react-icons/fa'
+import { FaChartPie, FaMoneyBillWave, FaWallet, FaHandHoldingUsd, FaArrowRight, FaBoxOpen, FaRobot, FaLightbulb } from 'react-icons/fa'
 
 const COLORS = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b']
 
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [topProducts, setTopProducts] = useState([])
   const [paymentMethods, setPaymentMethods] = useState([])
   const [kritis, setKritis] = useState([])
+  const [insights, setInsights] = useState([]) // <-- State untuk AI Insight
 
   // State Filter Tanggal & Tipe Grafik
   const [startDate, setStartDate] = useState(() => {
@@ -31,37 +32,14 @@ export default function Dashboard() {
   async function loadData() {
     setLoading(true)
     
-    // 1. Ambil Data Invoice
-    const { data: invData } = await supabase
-      .from('invoices')
-      .select('*, invoice_items(*, products(name))')
-      .gte('issue_date', startDate)
-      .lte('issue_date', endDate)
-      .neq('status', 'draft')
-
-    // 2. Ambil Data Pengeluaran
-    const { data: expData } = await supabase
-      .from('expenses')
-      .select('*')
-      .gte('date', startDate)
-      .lte('date', endDate)
-
-    // 3. Ambil Data Produk
+    const { data: invData } = await supabase.from('invoices').select('*, invoice_items(*, products(name))').gte('issue_date', startDate).lte('issue_date', endDate).neq('status', 'draft')
+    const { data: expData } = await supabase.from('expenses').select('*').gte('date', startDate).lte('date', endDate)
     const { data: prodData } = await supabase.from('products').select('*')
 
-    if (!invData || !prodData || !expData) {
-      setLoading(false)
-      return
-    }
+    if (!invData || !prodData || !expData) { setLoading(false); return }
 
-    // --- KALKULASI DATA ---
-    let totalOmzet = 0
-    let totalPiutang = 0
-    let totalPengeluaran = 0
-    let totalBarangTerjual = 0
-    let keuanganPerHari = {}
-    let produkTerjual = {}
-    let metodeBayar = {}
+    let totalOmzet = 0, totalPiutang = 0, totalPengeluaran = 0, totalBarangTerjual = 0
+    let keuanganPerHari = {}, produkTerjual = {}, metodeBayar = {}
 
     invData.forEach(inv => {
       const paid = Number(inv.paid_amount) || 0
@@ -89,25 +67,45 @@ export default function Dashboard() {
       keuanganPerHari[tgl].pengeluaran += Number(exp.amount)
     })
 
-    setSummary({ 
-      omzet: totalOmzet, 
-      pengeluaran: totalPengeluaran, 
-      laba: totalOmzet - totalPengeluaran, 
-      piutang: totalPiutang,
-      transaksi: invData.length,
-      barangTerjual: totalBarangTerjual
-    })
+    const labaBersih = totalOmzet - totalPengeluaran
+    const kritisArr = prodData.filter(p => p.stock <= p.min_stock)
 
-    const sortedDates = Object.keys(keuanganPerHari).sort((a, b) => new Date(a) - new Date(b))
-    setChartKeuangan(sortedDates.map(date => keuanganPerHari[date]))
-
-    const sortedProducts = Object.entries(produkTerjual)
-      .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => ({ name, value }))
+    setSummary({ omzet: totalOmzet, pengeluaran: totalPengeluaran, laba: labaBersih, piutang: totalPiutang, transaksi: invData.length, barangTerjual: totalBarangTerjual })
+    setChartKeuangan(Object.keys(keuanganPerHari).sort((a, b) => new Date(a) - new Date(b)).map(date => keuanganPerHari[date]))
+    
+    const sortedProducts = Object.entries(produkTerjual).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => ({ name, value }))
     setTopProducts(sortedProducts)
-
     setPaymentMethods(Object.entries(metodeBayar).map(([name, value]) => ({ name, value })))
-    setKritis(prodData.filter(p => p.stock <= p.min_stock))
+    setKritis(kritisArr)
 
+    // --- LOGIKA AI BUSINESS INSIGHT ---
+    let newInsights = []
+    
+    if (totalOmzet > 0) {
+      newInsights.push(`📈 Performa bagus! Omzet di periode ini mencapai ${formatRupiah(totalOmzet)}.`)
+    } else {
+      newInsights.push(`⚠️ Belum ada omzet di periode ini. Ayo buat promo atau iklan untuk menarik pembeli!`)
+    }
+
+    if (sortedProducts.length > 0) {
+      newInsights.push(`🔥 Produk terlarismu adalah **${sortedProducts[0].name}** (terjual ${sortedProducts[0].value} pcs). Pastikan stoknya selalu ada!`)
+    }
+
+    if (kritisArr.length > 0) {
+      newInsights.push(`📦 Terdapat **${kritisArr.length} produk** yang stoknya menipis. Segera lakukan restock agar tidak kehabisan.`)
+    }
+
+    if (totalPiutang > 0) {
+      newInsights.push(`💰 Ada piutang sebesar ${formatRupiah(totalPiutang)} yang belum tertagih. Segera ingatkan pelanggan via WhatsApp.`)
+    }
+
+    if (labaBersih < 0) {
+      newInsights.push(`🚨 Pengeluaran lebih besar dari pendapatan (Rugi ${formatRupiah(Math.abs(labaBersih))}). Evaluasi kembali biaya operasionalmu.`)
+    } else if (totalOmzet > 0) {
+      newInsights.push(`✨ Laba bersihmu saat ini ${formatRupiah(labaBersih)}. Pertahankan atau tingkatkan!`)
+    }
+
+    setInsights(newInsights)
     setLoading(false)
   }
 
@@ -119,7 +117,6 @@ export default function Dashboard() {
     </div>
   )
 
-  // Komponen Kartu yang bisa diklik
   const ClickableCard = ({ to, title, value, icon, colorClass, textColor }) => (
     <Link to={to} style={{ textDecoration: 'none' }}>
       <div className={`stat-card ${colorClass}`} style={{ height: '100%', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
@@ -127,19 +124,15 @@ export default function Dashboard() {
           {icon} <span>{title}</span>
         </div>
         <strong style={{ color: textColor, marginTop: 8 }}>{value}</strong>
-        <div style={{ position: 'absolute', bottom: 16, right: 16, opacity: 0.5 }}>
-          <FaArrowRight size={14} />
-        </div>
+        <div style={{ position: 'absolute', bottom: 16, right: 16, opacity: 0.5 }}><FaArrowRight size={14} /></div>
       </div>
     </Link>
   )
 
   return (
     <div>
-      {/* HEADER & FILTER TANGGAL */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <h1 style={{ margin: 0 }}>Dashboard</h1>
-        
         <div className="card" style={{ padding: '12px 16px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)' }}>Dari:</span>
@@ -152,60 +145,39 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KARTU RINGKASAN (BISA DIKLIK) */}
+      {/* --- KARTU AI INSIGHT --- */}
+      <div className="card" style={{ marginBottom: 24, background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', border: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div style={{ background: 'var(--primary)', padding: 8, borderRadius: 8 }}><FaRobot size={20} color="white" /></div>
+          <div>
+            <h3 style={{ margin: 0, color: 'white' }}>Asisten Bisnis Zahrashop</h3>
+            <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>Analisis pintar berdasarkan data periode ini.</p>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gap: 12 }}>
+          {insights.map((insight, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: 8 }}>
+              <FaLightbulb color="#fbbf24" style={{ marginTop: 4, flexShrink: 0 }} />
+              <span style={{ fontSize: 14, lineHeight: 1.5, color: '#e2e8f0' }} dangerouslySetInnerHTML={{ __html: insight.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* KARTU RINGKASAN */}
       <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-        <ClickableCard 
-          to="/invoices" 
-          title="Omzet" 
-          value={formatRupiah(summary.omzet)} 
-          icon={<FaMoneyBillWave />} 
-          colorClass="stat-green" 
-          textColor="#10b981" 
-        />
-        <ClickableCard 
-          to="/invoices" 
-          title="Piutang" 
-          value={formatRupiah(summary.piutang)} 
-          icon={<FaHandHoldingUsd />} 
-          colorClass="stat-blue" 
-          textColor="#f59e0b" 
-        />
-        <ClickableCard 
-          to="/expenses" 
-          title="Pengeluaran" 
-          value={formatRupiah(summary.pengeluaran)} 
-          icon={<FaWallet />} 
-          colorClass="stat-red" 
-          textColor="#ef4444" 
-        />
-        <ClickableCard 
-          to="/invoices" 
-          title="Total Transaksi" 
-          value={`${summary.transaksi} Invoice`} 
-          icon={<FaChartPie />} 
-          colorClass="" 
-          textColor="var(--text-main)" 
-        />
-        <ClickableCard 
-          to="/products" 
-          title="Barang Terjual" 
-          value={`${summary.barangTerjual} Pcs`} 
-          icon={<FaBoxOpen />} 
-          colorClass="" 
-          textColor="var(--text-main)" 
-        />
+        <ClickableCard to="/invoices" title="Omzet" value={formatRupiah(summary.omzet)} icon={<FaMoneyBillWave />} colorClass="stat-green" textColor="#10b981" />
+        <ClickableCard to="/invoices" title="Piutang" value={formatRupiah(summary.piutang)} icon={<FaHandHoldingUsd />} colorClass="stat-blue" textColor="#f59e0b" />
+        <ClickableCard to="/expenses" title="Pengeluaran" value={formatRupiah(summary.pengeluaran)} icon={<FaWallet />} colorClass="stat-red" textColor="#ef4444" />
+        <ClickableCard to="/invoices" title="Total Transaksi" value={`${summary.transaksi} Invoice`} icon={<FaChartPie />} colorClass="" textColor="var(--text-main)" />
+        <ClickableCard to="/products" title="Barang Terjual" value={`${summary.barangTerjual} Pcs`} icon={<FaBoxOpen />} colorClass="" textColor="var(--text-main)" />
       </div>
 
       {/* AREA GRAFIK */}
       <div className="card" style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <h3 style={{ margin: 0 }}>Analitik Bisnis</h3>
-          
-          <select 
-            value={chartType} 
-            onChange={e => setChartType(e.target.value)} 
-            style={{ width: 'auto', padding: '8px 32px 8px 16px', fontWeight: 'bold', cursor: 'pointer', border: '2px solid var(--primary)', color: 'var(--primary)' }}
-          >
+          <select value={chartType} onChange={e => setChartType(e.target.value)} style={{ width: 'auto', padding: '8px 32px 8px 16px', fontWeight: 'bold', cursor: 'pointer', border: '2px solid var(--primary)', color: 'var(--primary)' }}>
             <option value="keuangan">Grafik Arus Kas (Omzet vs Pengeluaran)</option>
             <option value="produk">Grafik Produk Terlaris</option>
             <option value="metode">Grafik Metode Pembayaran</option>
@@ -226,7 +198,6 @@ export default function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
           )}
-
           {chartType === 'produk' && (
             topProducts.length === 0 ? <EmptyState /> :
             <ResponsiveContainer width="100%" height="100%">
@@ -239,7 +210,6 @@ export default function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
           )}
-
           {chartType === 'metode' && (
             paymentMethods.length === 0 ? <EmptyState /> :
             <ResponsiveContainer width="100%" height="100%">
@@ -255,7 +225,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* STOK MENIPIS */}
       {kritis.length > 0 && (
         <div className="card" style={{ border: '1px solid #fecaca' }}>
           <h3 style={{ marginTop: 0, color: '#ef4444' }}>⚠️ Peringatan Stok Menipis</h3>

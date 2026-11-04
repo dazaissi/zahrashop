@@ -3,13 +3,19 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { supabase } from '../supabaseClient'
-import { FaBars, FaTimes, FaBell, FaCheckDouble, FaChartPie, FaFileInvoiceDollar, FaUsers, FaBoxOpen, FaMoneyBillWave, FaChartLine, FaUserTie, FaHistory, FaCog, FaMoon, FaSun, FaWhatsapp, FaUserCircle } from 'react-icons/fa'
+import { 
+  FaBars, FaTimes, FaBell, FaCheckDouble, FaChartPie, FaFileInvoiceDollar, 
+  FaUsers, FaBoxOpen, FaMoneyBillWave, FaChartLine, FaUserTie, 
+  FaHistory, FaCog, FaMoon, FaSun, FaWhatsapp, FaUserCircle, FaClipboardList 
+} from 'react-icons/fa'
+import { motion, AnimatePresence } from 'framer-motion' // <-- Import Animasi di atas
 
 const allMenus = [
   { to: '/dashboard', label: 'Dashboard', icon: <FaChartPie />, roles: ['owner', 'admin'] },
   { to: '/invoices', label: 'Invoice', icon: <FaFileInvoiceDollar />, roles: ['owner', 'admin'] },
   { to: '/customers', label: 'Pelanggan', icon: <FaUsers />, roles: ['owner', 'admin'] },
   { to: '/products', label: 'Produk & Stok', icon: <FaBoxOpen />, roles: ['owner', 'admin'] },
+  { to: '/stock-opname', label: 'Stock Opname', icon: <FaClipboardList />, roles: ['owner', 'admin'] }, // <-- Menu Baru
   { to: '/expenses', label: 'Pengeluaran', icon: <FaMoneyBillWave />, roles: ['owner'] },
   { to: '/reports', label: 'Laporan', icon: <FaChartLine />, roles: ['owner'] },
   { to: '/team', label: 'Tim & Karyawan', icon: <FaUserTie />, roles: ['owner'] },
@@ -43,17 +49,14 @@ export default function Layout() {
   useEffect(() => {
     if (session) {
       fetchNotifications()
-      // Ambil data profil dari database
       supabase.from('profiles').select('phone, role, avatar_url').eq('id', session.user.id).single()
         .then(({ data }) => { 
           if (data?.phone) setOwnerPhone(data.phone) 
           if (data?.role) setUserRole(data.role) 
           
-          // Prioritas Avatar: 1. Database, 2. Google, 3. Default
           const googleAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture
           setUserAvatar(data?.avatar_url || googleAvatar || '')
           
-          // Nama User: Ambil dari Google (jika ada), atau Email
           const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email.split('@')[0]
           setUserName(googleName)
         })
@@ -189,7 +192,21 @@ export default function Layout() {
       </aside>
 
       {isMobileOpen && <div className="mobile-overlay" onClick={() => setIsMobileOpen(false)}></div>}
-      <main className="content"><Outlet /></main>
+      
+      {/* AREA ANIMASI TRANSISI HALAMAN */}
+      <main className="content">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={loc.pathname}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
+      </main>
     </div>
   )
 }
