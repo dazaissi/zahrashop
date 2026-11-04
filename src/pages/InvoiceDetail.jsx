@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { formatRupiah, formatTanggal, formatNumberInput } from '../lib/format'
-import { FaWhatsapp, FaTrash, FaPrint } from 'react-icons/fa'
+import { FaWhatsapp, FaTrash, FaPrint, FaShareAlt } from 'react-icons/fa'
 import { logActivity } from '../lib/logger'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
@@ -58,11 +58,19 @@ export default function InvoiceDetail() {
     html2pdf().set({ margin: 0.5, filename: `Kwitansi-${payment.id}.pdf`, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'a5', orientation: 'landscape' } }).from(element).save()
   }
 
+  function getPublicLink() { return `${window.location.origin}/#/public-invoice/${encodeURIComponent(invoice.invoice_number)}` }
+
+  function handleShareLink() {
+    navigator.clipboard.writeText(getPublicLink())
+    showToast('Link publik berhasil di-copy! Kirim ke pelanggan.', 'success')
+  }
+
   function getWhatsAppLink() {
     if (!invoice.customers?.phone) return '#'
     let phone = invoice.customers.phone.replace(/\D/g, '')
     if (phone.startsWith('0')) phone = '62' + phone.slice(1)
-    const pesan = `Halo *${invoice.customers.name}*,\n\nInvoice *${invoice.invoice_number}* dengan total *${formatRupiah(invoice.total)}*.\nStatus: *${invoice.status.toUpperCase()}*\n\nTerima kasih.`
+    const link = getPublicLink()
+    const pesan = `Halo *${invoice.customers.name}*,\n\nBerikut kami kirimkan Invoice *${invoice.invoice_number}* dengan total *${formatRupiah(invoice.total)}*.\n\nStatus: *${invoice.status.toUpperCase()}*\n\nAnda dapat melihat rincian invoice secara online melalui link berikut:\n${link}\n\nTerima kasih.`
     return `https://wa.me/${phone}?text=${encodeURIComponent(pesan)}`
   }
 
@@ -70,7 +78,6 @@ export default function InvoiceDetail() {
     e.preventDefault()
     const sisa = invoice.total - invoice.paid_amount
     const bayar = Number(payAmount.replace(/\./g, ''))
-    
     if (isNaN(bayar) || bayar <= 0 || bayar > sisa) return showToast('Nominal tidak valid atau melebihi sisa!', 'error')
 
     setIsUpdating(true)
@@ -158,16 +165,28 @@ export default function InvoiceDetail() {
         </div>
       </Modal>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <Link to="/invoices" className="btn-back">&larr; Kembali</Link>
           <h1 style={{ margin: 0, fontSize: 24 }}>Detail Invoice</h1>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {profile?.role === 'owner' && (
             <Button variant="danger" onClick={handleDelete} disabled={isUpdating}><FaTrash /> Hapus</Button>
           )}
-          <a href={getWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="btn-action btn-action-green" style={{ textDecoration: 'none' }}><FaWhatsapp size={18} /> WhatsApp</a>
+          
+          <button 
+            onClick={handleShareLink} 
+            className="btn-action btn-action-primary" 
+            style={{ background: 'var(--primary)', color: 'white', padding: '10px 16px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
+          >
+            <FaShareAlt size={18} /> Share Link
+          </button>
+
+          <a href={getWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="btn-action btn-action-green" style={{ textDecoration: 'none', padding: '10px 16px', borderRadius: 8 }}>
+            <FaWhatsapp size={18} /> WhatsApp
+          </a>
+          
           <Button variant="primary" onClick={handleDownloadPdf}><FaPrint /> PDF</Button>
         </div>
       </div>
@@ -216,22 +235,24 @@ export default function InvoiceDetail() {
           </div>
         </div>
 
-        <table style={{ marginBottom: 32, boxShadow: 'none', border: '1px solid var(--border-color)' }}>
-          <thead><tr><th>Deskripsi</th><th width="80" style={{ textAlign: 'center' }}>Qty</th><th width="150" style={{ textAlign: 'right' }}>Harga</th><th width="150" style={{ textAlign: 'right' }}>Subtotal</th></tr></thead>
-          <tbody>
-            {items.map((item, i) => (
-              <tr key={i}>
-                <td><strong>{item.description}</strong>{item.products && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.products.name}</div>}</td>
-                <td style={{ textAlign: 'center' }}>{item.quantity}</td>
-                <td style={{ textAlign: 'right' }}>{formatRupiah(item.unit_price)}</td>
-                <td style={{ textAlign: 'right' }}>{formatRupiah(item.subtotal)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ marginBottom: 32, boxShadow: 'none', border: '1px solid var(--border-color)' }}>
+            <thead><tr><th>Deskripsi</th><th width="80" style={{ textAlign: 'center' }}>Qty</th><th width="150" style={{ textAlign: 'right' }}>Harga</th><th width="150" style={{ textAlign: 'right' }}>Subtotal</th></tr></thead>
+            <tbody>
+              {items.map((item, i) => (
+                <tr key={i}>
+                  <td><strong>{item.description}</strong>{item.products && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.products.name}</div>}</td>
+                  <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                  <td style={{ textAlign: 'right' }}>{formatRupiah(item.unit_price)}</td>
+                  <td style={{ textAlign: 'right' }}>{formatRupiah(item.subtotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ width: 300 }}>
+          <div style={{ width: '100%', maxWidth: 300 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}><span style={{ color: 'var(--text-muted)' }}>Subtotal</span><strong>{formatRupiah(invoice.subtotal)}</strong></div>
             {invoice.discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-color)', color: 'red' }}><span>Diskon</span><strong>-{formatRupiah(invoice.discount)}</strong></div>}
             {invoice.tax_amount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-color)' }}><span style={{ color: 'var(--text-muted)' }}>Pajak ({invoice.tax_percent}%)</span><strong>{formatRupiah(invoice.tax_amount)}</strong></div>}
@@ -240,7 +261,7 @@ export default function InvoiceDetail() {
           </div>
         </div>
 
-        <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px dashed var(--border-color)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px dashed var(--border-color)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24 }}>
           <div>{invoice.notes && <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}><strong>Catatan:</strong> {invoice.notes}</p>}</div>
           <div style={{ textAlign: 'right' }}>{profile?.bank_info && <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}><strong>Transfer:</strong><br/>{profile.bank_info}</p>}</div>
         </div>
@@ -249,7 +270,7 @@ export default function InvoiceDetail() {
       {payments.length > 0 && (
         <div style={{ marginTop: 32 }}>
           <h2 style={{ fontSize: 20, marginBottom: 16 }}>Riwayat Pembayaran</h2>
-          <div className="card">
+          <div className="card" style={{ overflowX: 'auto' }}>
             <table>
               <thead><tr><th>Tanggal</th><th>Nominal</th><th>Metode</th><th>Aksi</th></tr></thead>
               <tbody>

@@ -4,24 +4,14 @@ import { useAuth } from '../context/AuthContext'
 export default function Login() {
   const { session, loading, signInWithGoogle } = useAuth()
   
-  if (loading) return (
-    <div className="login-wrap">
-      <div className="skeleton" style={{ width: 350, height: 350, borderRadius: 24 }}></div>
-    </div>
-  )
-  
+  if (loading) return <div className="login-wrap"><div className="skeleton" style={{ width: 350, height: 350, borderRadius: 24 }}></div></div>
   if (session) return <Navigate to="/dashboard" replace />
   
   return (
     <div className="login-wrap">
       <div className="login-card">
         <div className="login-header">
-          <img 
-            src="/logo.png" 
-            alt="Zahrashop Logo" 
-            style={{ height: 80, objectFit: 'contain', margin: '0 auto 16px' }}
-            onError={(e) => { e.target.style.display = 'none' }} 
-          />
+          <img src="/logo.png" alt="Zahrashop Logo" style={{ height: 80, objectFit: 'contain', margin: '0 auto 16px' }} onError={(e) => { e.target.style.display = 'none' }} />
           <h1 className="login-logo">Zahrashop</h1>
           <p className="login-subtitle">Kelola invoice, pelanggan, dan stok bisnismu dengan lebih cerdas dan efisien.</p>
         </div>

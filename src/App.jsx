@@ -15,8 +15,8 @@ import Reports from './pages/Reports'
 import Expenses from './pages/Expenses'
 import Team from './pages/Team'
 import ActivityLog from './pages/ActivityLog'
-import PublicInvoice from './pages/PublicInvoice'
-import StockOpname from './pages/StockOpname' // <-- Import StockOpname
+import PublicInvoice from './pages/PublicInvoice' // <-- Import PublicInvoice
+import StockOpname from './pages/StockOpname'
 
 export default function App() {
   return (
@@ -39,7 +39,7 @@ export default function App() {
             <Route path="/invoices/:id" element={<InvoiceDetail />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/expenses" element={<Expenses />} />
-            <Route path="/stock-opname" element={<StockOpname />} /> {/* <-- Rute Baru */}
+            <Route path="/stock-opname" element={<StockOpname />} />
             <Route path="/team" element={<Team />} />
             <Route path="/activity-logs" element={<ActivityLog />} />
             <Route path="/settings" element={<Settings />} />

@@ -6,6 +6,27 @@ import { useUI } from '../context/UIContext'
 import { formatRupiah, formatTanggal } from '../lib/format'
 import Button from '../components/ui/Button'
 import { FaFileExcel, FaPrint } from 'react-icons/fa'
+import { motion } from 'framer-motion'
+
+const AnimatedNumber = ({ value, prefix = 'Rp ' }) => {
+  const [displayValue, setDisplayValue] = useState(0)
+  useEffect(() => {
+    let start = 0
+    const end = value
+    if (start === end) return
+    const duration = 1000
+    const incrementTime = 20
+    const steps = duration / incrementTime
+    const increment = (end - start) / steps
+    const timer = setInterval(() => {
+      start += increment
+      if (start >= end) { setDisplayValue(end); clearInterval(timer) }
+      else { setDisplayValue(Math.floor(start)) }
+    }, incrementTime)
+    return () => clearInterval(timer)
+  }, [value])
+  return <span>{prefix}{displayValue.toLocaleString('id-ID')}</span>
+}
 
 export default function Reports() {
   const { session } = useAuth()
@@ -13,6 +34,7 @@ export default function Reports() {
   
   const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; })
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [activeFilter, setActiveFilter] = useState('bulan-ini')
 
   const [loading, setLoading] = useState(true)
   const [reportData, setReportData] = useState([])
@@ -22,6 +44,29 @@ export default function Reports() {
   const [totalExpense, setTotalExpense] = useState(0)
 
   useEffect(() => { if (session) fetchReport() }, [session, startDate, endDate])
+
+  function setQuickFilter(type) {
+    const today = new Date()
+    let start = new Date()
+    let end = new Date()
+    
+    if (type === 'bulan-ini') {
+      start = new Date(today.getFullYear(), today.getMonth(), 1)
+    } else if (type === 'bulan-lalu') {
+      start = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      end = new Date(today.getFullYear(), today.getMonth(), 0)
+    } else if (type === '6-bulan') {
+      start = new Date(today.getFullYear(), today.getMonth() - 5, 1)
+    } else if (type === 'tahun-ini') {
+      start = new Date(today.getFullYear(), 0, 1)
+    } else if (type === 'semua') {
+      start = new Date(2000, 0, 1)
+    }
+
+    setStartDate(start.toISOString().split('T')[0])
+    setEndDate(end.toISOString().split('T')[0])
+    setActiveFilter(type)
+  }
 
   async function fetchReport() {
     setLoading(true)
@@ -44,7 +89,6 @@ export default function Reports() {
       totalOmzet += Number(inv.paid_amount) || 0
       const sisa = Number(inv.total) - (Number(inv.paid_amount) || 0)
       if (sisa > 0) totalPiutang += sisa
-
       inv.invoice_items.forEach(item => {
         const qty = Number(item.quantity)
         const jual = Number(item.subtotal)
@@ -83,7 +127,7 @@ export default function Reports() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <h1 style={{ margin: 0 }}>Laporan Bisnis</h1>
         <div style={{ display: 'flex', gap: 12 }}>
           <Button variant="success" onClick={handleExportCSV}><FaFileExcel /> Export Excel</Button>
@@ -91,9 +135,25 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 24, display: 'flex', gap: 16, alignItems: 'flex-end' }}>
-        <div><label>Dari Tanggal</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-        <div><label>Sampai Tanggal</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+      <div className="card" style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="filter-group">
+          <button className={`filter-btn ${activeFilter === 'bulan-ini' ? 'active' : ''}`} onClick={() => setQuickFilter('bulan-ini')}>Bulan Ini</button>
+          <button className={`filter-btn ${activeFilter === 'bulan-lalu' ? 'active' : ''}`} onClick={() => setQuickFilter('bulan-lalu')}>Bulan Lalu</button>
+          <button className={`filter-btn ${activeFilter === '6-bulan' ? 'active' : ''}`} onClick={() => setQuickFilter('6-bulan')}>6 Bulan Terakhir</button>
+          <button className={`filter-btn ${activeFilter === 'tahun-ini' ? 'active' : ''}`} onClick={() => setQuickFilter('tahun-ini')}>Tahun Ini</button>
+          <button className={`filter-btn ${activeFilter === 'semua' ? 'active' : ''}`} onClick={() => setQuickFilter('semua')}>Semua Waktu</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)' }}>Dari:</span>
+            <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setActiveFilter('manual'); }} style={{ width: 'auto', background: 'var(--bg-color)', padding: '8px 12px' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)' }}>Sampai:</span>
+            <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setActiveFilter('manual'); }} style={{ width: 'auto', background: 'var(--bg-color)', padding: '8px 12px' }} />
+          </div>
+        </div>
       </div>
 
       <div id="report-paper" style={{ padding: '40px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', border: '1px solid var(--border-color)', background: 'var(--card-bg)' }}>
@@ -105,39 +165,62 @@ export default function Reports() {
 
         {loading ? <div className="skeleton" style={{ height: 300, width: '100%' }}></div> : (
           <>
-            <div className="cards" style={{ marginBottom: 32 }}>
-              <div className="stat-card" style={{ background: 'var(--card-bg)', borderColor: 'var(--border-color)' }}><span>Total Transaksi</span><strong>{summary.transaksi} Invoice</strong></div>
-              <div className="stat-card stat-green"><span>Total Uang Masuk (Omzet)</span><strong>{formatRupiah(summary.omzet)}</strong></div>
-              <div className="stat-card stat-blue"><span>Laba Kotor</span><strong>{formatRupiah(summary.laba)}</strong></div>
-              <div className="stat-card stat-red"><span>Total Pengeluaran</span><strong>-{formatRupiah(totalExpense)}</strong></div>
-              <div className="stat-card stat-green" style={{ borderWidth: 2 }}><span>Laba Bersih</span><strong>{formatRupiah(summary.laba - totalExpense)}</strong></div>
+            <div className="report-stats-grid">
+              <div className="stat-card" style={{ background: 'var(--card-bg)', borderColor: 'var(--border-color)' }}>
+                <span>Total Transaksi</span>
+                <strong>{summary.transaksi} Invoice</strong>
+              </div>
+              <div className="stat-card stat-green">
+                <span>Total Uang Masuk (Omzet)</span>
+                <strong><AnimatedNumber value={summary.omzet} /></strong>
+              </div>
+              <div className="stat-card stat-blue">
+                <span>Laba Kotor</span>
+                <strong><AnimatedNumber value={summary.laba} /></strong>
+              </div>
+              <div className="stat-card stat-red">
+                <span>Total Pengeluaran</span>
+                <strong><AnimatedNumber value={totalExpense} prefix="-Rp " /></strong>
+              </div>
+              <div className="stat-card stat-green" style={{ borderWidth: 2 }}>
+                <span>Laba Bersih</span>
+                <strong><AnimatedNumber value={summary.laba - totalExpense} /></strong>
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
               <div>
                 <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>Daftar Transaksi</h3>
-                <table style={{ boxShadow: 'none', border: '1px solid var(--border-color)' }}>
-                  <thead><tr><th>Invoice</th><th>Pelanggan</th><th>Total Tagihan</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {reportData.map(inv => (
-                      <tr key={inv.id}>
-                        <td><strong>{inv.invoice_number}</strong><br/><small style={{ color: 'var(--text-muted)' }}>{formatTanggal(inv.issue_date)}</small></td>
-                        <td>{inv.customers?.name || 'Umum'}</td>
-                        <td>{formatRupiah(inv.total)}</td>
-                        <td><span style={{ textTransform: 'uppercase', fontWeight: 'bold', fontSize: 12, color: inv.status === 'paid' ? '#10b981' : '#f59e0b' }}>{inv.status}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                  <table style={{ boxShadow: 'none', border: '1px solid var(--border-color)' }}>
+                    <thead><tr><th>Invoice</th><th>Pelanggan</th><th>Total Tagihan</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {reportData.length === 0 ? (
+                        <tr><td colSpan="4" style={{ textAlign: 'center', padding: 24 }}>Tidak ada transaksi di periode ini.</td></tr>
+                      ) : reportData.map(inv => (
+                        <tr key={inv.id}>
+                          <td><strong>{inv.invoice_number}</strong><br/><small style={{ color: 'var(--text-muted)' }}>{formatTanggal(inv.issue_date)}</small></td>
+                          <td>{inv.customers?.name || 'Umum'}</td>
+                          <td>{formatRupiah(inv.total)}</td>
+                          <td><span style={{ textTransform: 'uppercase', fontWeight: 'bold', fontSize: 12, color: inv.status === 'paid' ? '#10b981' : '#f59e0b' }}>{inv.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               <div>
                 <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>Produk Terlaris</h3>
-                <table style={{ boxShadow: 'none', border: '1px solid var(--border-color)' }}>
-                  <thead><tr><th>Produk</th><th>Qty</th></tr></thead>
-                  <tbody>
-                    {topProducts.map((p, i) => (<tr key={i}><td>{p.name}</td><td><strong>{p.qty}</strong></td></tr>))}
-                  </tbody>
-                </table>
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                  <table style={{ boxShadow: 'none', border: '1px solid var(--border-color)' }}>
+                    <thead><tr><th>Produk</th><th>Qty</th></tr></thead>
+                    <tbody>
+                      {topProducts.length === 0 ? (
+                        <tr><td colSpan="2" style={{ textAlign: 'center', padding: 24 }}>Belum ada produk terjual.</td></tr>
+                      ) : topProducts.map((p, i) => (<tr key={i}><td>{p.name}</td><td><strong>{p.qty}</strong></td></tr>))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </>

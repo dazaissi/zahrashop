@@ -48,8 +48,12 @@ export default function InvoiceForm() {
   
   const [items, setItems] = useState([{ product_id: '', description: '', quantity: 1, unit_price: '', subtotal: 0 }])
 
-  useEffect(() => { if (session) { fetchCustomers(); fetchProducts(); generateInvoiceNumber() } }, [session])
+  useEffect(() => {
+    if (session) { fetchCustomers(); fetchProducts(); generateInvoiceNumber() }
+  }, [session])
+
   useEffect(() => { if (paymentMethod !== 'qris') setIsQrisPaid(false) }, [paymentMethod])
+
   useEffect(() => {
     if (paymentMethod === 'hutang' && tempoMode === 'durasi') {
       const date = new Date(issueDate); date.setDate(date.getDate() + Number(tempoDays))
@@ -120,7 +124,6 @@ export default function InvoiceForm() {
   async function handleSubmit(e) {
     e.preventDefault()
     if (isSubmitting) return
-
     if (paymentMethod === 'split' && totalSplitPaid < grandTotal) return showToast(`Total pembayaran kurang dari Tagihan!`, 'error')
 
     let invoiceStatus = 'draft', finalPaidAmount = 0, finalNotes = notes
@@ -173,9 +176,10 @@ export default function InvoiceForm() {
     <div>
       {showScanner && <BarcodeScanner onScan={handleBarcodeScan} onClose={() => setShowScanner(false)} />}
       <h1>Buat Invoice Baru</h1>
+      
       <form onSubmit={handleSubmit}>
         <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
             <div><label>Pelanggan</label><select value={customerId} onChange={e => setCustomerId(e.target.value)}><option value="">-- Pelanggan Umum --</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
             <div><label>No. Invoice</label><input required value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} /></div>
             <div><label>Tanggal Terbit</label><input type="date" required value={issueDate} onChange={e => setIssueDate(e.target.value)} /></div>
@@ -187,26 +191,28 @@ export default function InvoiceForm() {
             <h3 style={{ margin: 0 }}>Daftar Barang</h3>
             <Button type="button" variant="primary" onClick={() => setShowScanner(true)}><FaBarcode /> Scan Barcode</Button>
           </div>
-          <table style={{ minWidth: 600 }}>
-            <thead><tr><th>Produk</th><th>Deskripsi</th><th width="100" style={{ textAlign: 'center' }}>Qty</th><th width="150">Harga</th><th width="150">Subtotal</th><th width="50"></th></tr></thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr key={index}>
-                  <td><select value={item.product_id} onChange={e => handleItemChange(index, 'product_id', e.target.value)}><option value="">-- Pilih Produk --</option>{products.map(p => <option key={p.id} value={p.id}>{p.name} (Stok: {p.stock})</option>)}</select></td>
-                  <td><input value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} placeholder="Deskripsi" /></td>
-                  <td><input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 16, padding: '12px 8px' }} /></td>
-                  <td><input type="number" min="0" value={item.unit_price} onChange={e => handleItemChange(index, 'unit_price', e.target.value)} /></td>
-                  <td>{formatRupiah(item.subtotal)}</td>
-                  <td><Button type="button" variant="danger" onClick={() => items.length > 1 && setItems(items.filter((_, i) => i !== index))} style={{ padding: '8px 12px' }}>X</Button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto', width: '100%' }}>
+            <table style={{ minWidth: 600 }}>
+              <thead><tr><th>Produk</th><th>Deskripsi</th><th width="100" style={{ textAlign: 'center' }}>Qty</th><th width="150">Harga</th><th width="150">Subtotal</th><th width="50"></th></tr></thead>
+              <tbody>
+                {items.map((item, index) => (
+                  <tr key={index}>
+                    <td><select value={item.product_id} onChange={e => handleItemChange(index, 'product_id', e.target.value)}><option value="">-- Pilih Produk --</option>{products.map(p => <option key={p.id} value={p.id}>{p.name} (Stok: {p.stock})</option>)}</select></td>
+                    <td><input value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} placeholder="Deskripsi" /></td>
+                    <td><input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 16, padding: '12px 8px' }} /></td>
+                    <td><input type="number" min="0" value={item.unit_price} onChange={e => handleItemChange(index, 'unit_price', e.target.value)} /></td>
+                    <td>{formatRupiah(item.subtotal)}</td>
+                    <td><Button type="button" variant="danger" onClick={() => items.length > 1 && setItems(items.filter((_, i) => i !== index))} style={{ padding: '8px 12px' }}>X</Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <Button type="button" variant="secondary" onClick={() => setItems([...items, { product_id: '', description: '', quantity: 1, unit_price: '', subtotal: 0 }])} style={{ marginTop: 12 }}><FaPlus /> Tambah Baris</Button>
         </div>
 
-        <div className="card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-          <div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+          <div className="card">
             <h3 style={{ marginTop: 0 }}>Biaya Tambahan</h3>
             <label>Diskon</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -264,10 +270,12 @@ export default function InvoiceForm() {
                   <input type="text" placeholder="0" value={dpType === 'nominal' ? formatNumberInput(paidAmount) : paidAmount} onChange={e => setPaidAmount(dpType === 'nominal' ? e.target.value.replace(/\./g, '') : e.target.value)} style={{ flex: 1 }} />
                 </div>
                 {dpType === 'persen' && safeDpInput > 0 && <p style={{ margin: '-4px 0 12px', fontSize: 12, color: '#ef4444' }}>Nominal: <strong>{formatRupiah(dpAmount)}</strong></p>}
+                
                 <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 13 }}><input type="radio" checked={tempoMode === 'durasi'} onChange={() => setTempoMode('durasi')} /> Durasi</label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 13 }}><input type="radio" checked={tempoMode === 'manual'} onChange={() => setTempoMode('manual')} /> Manual</label>
                 </div>
+
                 {tempoMode === 'durasi' ? (
                   <div><label>Berapa hari?</label><input type="number" min="1" value={tempoDays} onChange={e => setTempoDays(e.target.value)} /></div>
                 ) : (
@@ -278,11 +286,12 @@ export default function InvoiceForm() {
                 )}
               </div>
             )}
+            
             <label style={{ marginTop: 16 }}>Catatan Invoice</label>
             <textarea rows="2" placeholder="Terima kasih sudah berbelanja..." value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
 
-          <div style={{ textAlign: 'right', background: 'var(--bg-color)', padding: 20, borderRadius: 12, border: '1px solid var(--border-color)' }}>
+          <div className="card" style={{ textAlign: 'right', background: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
             <p style={{ margin: '8px 0', color: 'var(--text-muted)' }}>Subtotal: <strong style={{ color: 'var(--text-main)' }}>{formatRupiah(subtotal)}</strong></p>
             <p style={{ margin: '8px 0', color: 'var(--text-muted)' }}>Diskon: <strong style={{ color: 'red' }}>-{formatRupiah(safeDiscount)}</strong></p>
             <p style={{ margin: '8px 0', color: 'var(--text-muted)' }}>Pajak / Biaya: <strong style={{ color: 'var(--text-main)' }}>{formatRupiah(taxAmount)}</strong></p>

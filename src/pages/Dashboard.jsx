@@ -5,25 +5,42 @@ import { useAuth } from '../context/AuthContext'
 import { formatRupiah } from '../lib/format'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { FaChartPie, FaMoneyBillWave, FaWallet, FaHandHoldingUsd, FaArrowRight, FaBoxOpen, FaRobot, FaLightbulb } from 'react-icons/fa'
+import { motion } from 'framer-motion'
 
 const COLORS = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b']
+
+const AnimatedNumber = ({ value, prefix = 'Rp ' }) => {
+  const [displayValue, setDisplayValue] = useState(0)
+  useEffect(() => {
+    let start = 0
+    const end = value
+    if (start === end) return
+    const duration = 1000
+    const incrementTime = 20
+    const steps = duration / incrementTime
+    const increment = (end - start) / steps
+    const timer = setInterval(() => {
+      start += increment
+      if (start >= end) { setDisplayValue(end); clearInterval(timer) }
+      else { setDisplayValue(Math.floor(start)) }
+    }, incrementTime)
+    return () => clearInterval(timer)
+  }, [value])
+  return <span>{prefix}{displayValue.toLocaleString('id-ID')}</span>
+}
 
 export default function Dashboard() {
   const { session } = useAuth()
   const [loading, setLoading] = useState(true)
   
-  // State Data
   const [summary, setSummary] = useState({ omzet: 0, pengeluaran: 0, laba: 0, piutang: 0, transaksi: 0, barangTerjual: 0 })
   const [chartKeuangan, setChartKeuangan] = useState([])
   const [topProducts, setTopProducts] = useState([])
   const [paymentMethods, setPaymentMethods] = useState([])
   const [kritis, setKritis] = useState([])
-  const [insights, setInsights] = useState([]) // <-- State untuk AI Insight
+  const [insights, setInsights] = useState([])
 
-  // State Filter Tanggal & Tipe Grafik
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]
-  })
+  const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0] })
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
   const [chartType, setChartType] = useState('keuangan')
 
@@ -78,32 +95,12 @@ export default function Dashboard() {
     setPaymentMethods(Object.entries(metodeBayar).map(([name, value]) => ({ name, value })))
     setKritis(kritisArr)
 
-    // --- LOGIKA AI BUSINESS INSIGHT ---
     let newInsights = []
-    
-    if (totalOmzet > 0) {
-      newInsights.push(`📈 Performa bagus! Omzet di periode ini mencapai ${formatRupiah(totalOmzet)}.`)
-    } else {
-      newInsights.push(`⚠️ Belum ada omzet di periode ini. Ayo buat promo atau iklan untuk menarik pembeli!`)
-    }
-
-    if (sortedProducts.length > 0) {
-      newInsights.push(`🔥 Produk terlarismu adalah **${sortedProducts[0].name}** (terjual ${sortedProducts[0].value} pcs). Pastikan stoknya selalu ada!`)
-    }
-
-    if (kritisArr.length > 0) {
-      newInsights.push(`📦 Terdapat **${kritisArr.length} produk** yang stoknya menipis. Segera lakukan restock agar tidak kehabisan.`)
-    }
-
-    if (totalPiutang > 0) {
-      newInsights.push(`💰 Ada piutang sebesar ${formatRupiah(totalPiutang)} yang belum tertagih. Segera ingatkan pelanggan via WhatsApp.`)
-    }
-
-    if (labaBersih < 0) {
-      newInsights.push(`🚨 Pengeluaran lebih besar dari pendapatan (Rugi ${formatRupiah(Math.abs(labaBersih))}). Evaluasi kembali biaya operasionalmu.`)
-    } else if (totalOmzet > 0) {
-      newInsights.push(`✨ Laba bersihmu saat ini ${formatRupiah(labaBersih)}. Pertahankan atau tingkatkan!`)
-    }
+    if (totalOmzet > 0) newInsights.push(`📈 Performa bagus! Omzet di periode ini mencapai ${formatRupiah(totalOmzet)}.`)
+    else newInsights.push(`📊 Belum ada omzet di periode ini. Ayo buat promo atau iklan untuk menarik pembeli!`)
+    if (sortedProducts.length > 0) newInsights.push(`🔥 Produk terlarismu adalah **${sortedProducts[0].name}** (terjual ${sortedProducts[0].value} pcs). Pastikan stoknya selalu ada!`)
+    if (kritisArr.length > 0) newInsights.push(`📦 Terdapat **${kritisArr.length} produk** yang stoknya menipis. Segera lakukan restock agar tidak kehabisan.`)
+    if (totalPiutang > 0) newInsights.push(`💰 Ada piutang sebesar ${formatRupiah(totalPiutang)} yang belum tertagih. Segera ingatkan pelanggan via WhatsApp.`)
 
     setInsights(newInsights)
     setLoading(false)
@@ -117,15 +114,13 @@ export default function Dashboard() {
     </div>
   )
 
-  const ClickableCard = ({ to, title, value, icon, colorClass, textColor }) => (
+  const AnimatedCard = ({ to, title, value, icon, colorClass, textColor, delay }) => (
     <Link to={to} style={{ textDecoration: 'none' }}>
-      <div className={`stat-card ${colorClass}`} style={{ height: '100%', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {icon} <span>{title}</span>
-        </div>
-        <strong style={{ color: textColor, marginTop: 8 }}>{value}</strong>
+      <motion.div className={`stat-card ${colorClass}`} style={{ height: '100%', cursor: 'pointer', position: 'relative', overflow: 'hidden' }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay, ease: 'easeOut' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{icon} <span>{title}</span></div>
+        <strong style={{ color: textColor, marginTop: 8 }}>{typeof value === 'number' && title.includes('Rp') ? <AnimatedNumber value={value} /> : value}</strong>
         <div style={{ position: 'absolute', bottom: 16, right: 16, opacity: 0.5 }}><FaArrowRight size={14} /></div>
-      </div>
+      </motion.div>
     </Link>
   )
 
@@ -145,36 +140,33 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* --- KARTU AI INSIGHT --- */}
-      <div className="card" style={{ marginBottom: 24, background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', border: 'none' }}>
+      <motion.div className="card" style={{ marginBottom: 24, background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', color: 'white', border: 'none' }} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, ease: 'easeOut' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-          <div style={{ background: 'var(--primary)', padding: 8, borderRadius: 8 }}><FaRobot size={20} color="white" /></div>
+          <div style={{ background: 'rgba(255,255,255,0.2)', padding: 8, borderRadius: 8 }}><FaRobot size={20} color="white" /></div>
           <div>
             <h3 style={{ margin: 0, color: 'white' }}>Asisten Bisnis Zahrashop</h3>
-            <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>Analisis pintar berdasarkan data periode ini.</p>
+            <p style={{ margin: 0, fontSize: 13, color: '#fbcfe8' }}>Analisis pintar berdasarkan data periode ini.</p>
           </div>
         </div>
         <div style={{ display: 'grid', gap: 12 }}>
           {insights.map((insight, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: 8 }}>
+            <motion.div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: 8 }} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + (idx * 0.1) }}>
               <FaLightbulb color="#fbbf24" style={{ marginTop: 4, flexShrink: 0 }} />
-              <span style={{ fontSize: 14, lineHeight: 1.5, color: '#e2e8f0' }} dangerouslySetInnerHTML={{ __html: insight.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-            </div>
+              <span style={{ fontSize: 14, lineHeight: 1.5, color: 'white' }} dangerouslySetInnerHTML={{ __html: insight.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+            </motion.div>
           ))}
         </div>
+      </motion.div>
+
+      <div className="dashboard-cards-grid">
+        <AnimatedCard to="/invoices" title="Omzet" value={summary.omzet} icon={<FaMoneyBillWave />} colorClass="stat-green" textColor="#10b981" delay={0.1} />
+        <AnimatedCard to="/invoices" title="Piutang" value={summary.piutang} icon={<FaHandHoldingUsd />} colorClass="stat-blue" textColor="#f59e0b" delay={0.2} />
+        <AnimatedCard to="/expenses" title="Pengeluaran" value={summary.pengeluaran} icon={<FaWallet />} colorClass="stat-red" textColor="#ef4444" delay={0.3} />
+        <AnimatedCard to="/invoices" title="Total Transaksi" value={`${summary.transaksi} Invoice`} icon={<FaChartPie />} colorClass="" textColor="var(--text-main)" delay={0.4} />
+        <AnimatedCard to="/products" title="Barang Terjual" value={`${summary.barangTerjual} Pcs`} icon={<FaBoxOpen />} colorClass="" textColor="var(--text-main)" delay={0.5} />
       </div>
 
-      {/* KARTU RINGKASAN */}
-      <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-        <ClickableCard to="/invoices" title="Omzet" value={formatRupiah(summary.omzet)} icon={<FaMoneyBillWave />} colorClass="stat-green" textColor="#10b981" />
-        <ClickableCard to="/invoices" title="Piutang" value={formatRupiah(summary.piutang)} icon={<FaHandHoldingUsd />} colorClass="stat-blue" textColor="#f59e0b" />
-        <ClickableCard to="/expenses" title="Pengeluaran" value={formatRupiah(summary.pengeluaran)} icon={<FaWallet />} colorClass="stat-red" textColor="#ef4444" />
-        <ClickableCard to="/invoices" title="Total Transaksi" value={`${summary.transaksi} Invoice`} icon={<FaChartPie />} colorClass="" textColor="var(--text-main)" />
-        <ClickableCard to="/products" title="Barang Terjual" value={`${summary.barangTerjual} Pcs`} icon={<FaBoxOpen />} colorClass="" textColor="var(--text-main)" />
-      </div>
-
-      {/* AREA GRAFIK */}
-      <div className="card" style={{ marginBottom: 32 }}>
+      <motion.div className="card" style={{ marginBottom: 32 }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <h3 style={{ margin: 0 }}>Analitik Bisnis</h3>
           <select value={chartType} onChange={e => setChartType(e.target.value)} style={{ width: 'auto', padding: '8px 32px 8px 16px', fontWeight: 'bold', cursor: 'pointer', border: '2px solid var(--primary)', color: 'var(--primary)' }}>
@@ -193,8 +185,8 @@ export default function Dashboard() {
                 <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(val) => `Rp ${val / 1000}k`} />
                 <Tooltip formatter={(value) => formatRupiah(value)} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                 <Legend verticalAlign="top" height={36} iconType="circle" />
-                <Bar dataKey="omzet" name="Omzet" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} />
-                <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
+                <Bar dataKey="omzet" name="Omzet" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={true} animationDuration={1500} />
+                <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={true} animationDuration={1500} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -202,7 +194,7 @@ export default function Dashboard() {
             topProducts.length === 0 ? <EmptyState /> :
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={topProducts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5}>
+                <Pie data={topProducts} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} isAnimationActive={true} animationDuration={1500}>
                   {topProducts.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
                 <Tooltip formatter={(value) => `${value} Pcs`} />
@@ -214,7 +206,7 @@ export default function Dashboard() {
             paymentMethods.length === 0 ? <EmptyState /> :
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={paymentMethods} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100}>
+                <Pie data={paymentMethods} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} isAnimationActive={true} animationDuration={1500}>
                   {paymentMethods.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />)}
                 </Pie>
                 <Tooltip formatter={(value) => `${value} Transaksi`} />
@@ -223,10 +215,10 @@ export default function Dashboard() {
             </ResponsiveContainer>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {kritis.length > 0 && (
-        <div className="card" style={{ border: '1px solid #fecaca' }}>
+        <motion.div className="card" style={{ border: '1px solid #fecaca' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
           <h3 style={{ marginTop: 0, color: '#ef4444' }}>⚠️ Peringatan Stok Menipis</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12, marginTop: 16 }}>
             {kritis.map(p => (
@@ -236,7 +228,7 @@ export default function Dashboard() {
               </Link>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   )

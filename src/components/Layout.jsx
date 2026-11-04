@@ -3,19 +3,15 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { supabase } from '../supabaseClient'
-import { 
-  FaBars, FaTimes, FaBell, FaCheckDouble, FaChartPie, FaFileInvoiceDollar, 
-  FaUsers, FaBoxOpen, FaMoneyBillWave, FaChartLine, FaUserTie, 
-  FaHistory, FaCog, FaMoon, FaSun, FaWhatsapp, FaUserCircle, FaClipboardList 
-} from 'react-icons/fa'
-import { motion, AnimatePresence } from 'framer-motion' // <-- Import Animasi di atas
+import { FaBars, FaTimes, FaBell, FaCheckDouble, FaChartPie, FaFileInvoiceDollar, FaUsers, FaBoxOpen, FaMoneyBillWave, FaChartLine, FaUserTie, FaHistory, FaCog, FaMoon, FaSun, FaWhatsapp, FaUserCircle, FaClipboardList, FaPlus } from 'react-icons/fa'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const allMenus = [
   { to: '/dashboard', label: 'Dashboard', icon: <FaChartPie />, roles: ['owner', 'admin'] },
   { to: '/invoices', label: 'Invoice', icon: <FaFileInvoiceDollar />, roles: ['owner', 'admin'] },
   { to: '/customers', label: 'Pelanggan', icon: <FaUsers />, roles: ['owner', 'admin'] },
   { to: '/products', label: 'Produk & Stok', icon: <FaBoxOpen />, roles: ['owner', 'admin'] },
-  { to: '/stock-opname', label: 'Stock Opname', icon: <FaClipboardList />, roles: ['owner', 'admin'] }, // <-- Menu Baru
+  { to: '/stock-opname', label: 'Stock Opname', icon: <FaClipboardList />, roles: ['owner', 'admin'] },
   { to: '/expenses', label: 'Pengeluaran', icon: <FaMoneyBillWave />, roles: ['owner'] },
   { to: '/reports', label: 'Laporan', icon: <FaChartLine />, roles: ['owner'] },
   { to: '/team', label: 'Tim & Karyawan', icon: <FaUserTie />, roles: ['owner'] },
@@ -34,7 +30,6 @@ export default function Layout() {
   const [readNotifs, setReadNotifs] = useState(() => JSON.parse(localStorage.getItem('read_notifs')) || [])
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
   
-  // State Profil
   const [ownerPhone, setOwnerPhone] = useState('')
   const [userRole, setUserRole] = useState('admin')
   const [userName, setUserName] = useState('Pengguna')
@@ -53,10 +48,8 @@ export default function Layout() {
         .then(({ data }) => { 
           if (data?.phone) setOwnerPhone(data.phone) 
           if (data?.role) setUserRole(data.role) 
-          
           const googleAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture
           setUserAvatar(data?.avatar_url || googleAvatar || '')
-          
           const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email.split('@')[0]
           setUserName(googleName)
         })
@@ -115,9 +108,11 @@ export default function Layout() {
   return (
     <div className="app">
       <div className="mobile-header">
-        <button onClick={() => setIsMobileOpen(true)} className="mobile-menu-btn"><FaBars size={24} /></button>
         <BrandLogo />
-        <div style={{ width: 24 }}></div>
+        <button onClick={() => setShowNotif(!showNotif)} style={{ background: 'transparent', border: 'none', color: 'white', position: 'relative' }}>
+          <FaBell size={20} />
+          {notifications.length > 0 && <span style={{ width: 8, height: 8, background: '#fbbf24', borderRadius: '50%', position: 'absolute', top: 0, right: -2 }}></span>}
+        </button>
       </div>
 
       <aside className={`sidebar ${isMobileOpen ? 'open' : ''}`}>
@@ -126,20 +121,15 @@ export default function Layout() {
           <button className="mobile-close-btn" onClick={() => setIsMobileOpen(false)}><FaTimes size={24} /></button>
         </div>
 
-        {/* USER PROFILE CARD */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: 'rgba(255,255,255,0.1)', borderRadius: 12, marginBottom: 24 }}>
-          {userAvatar ? (
-            <img src={userAvatar} alt="Avatar" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid white' }} />
-          ) : (
-            <FaUserCircle size={40} color="white" />
-          )}
+          {userAvatar ? <img src={userAvatar} alt="Avatar" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid white' }} /> : <FaUserCircle size={40} color="white" />}
           <div style={{ overflow: 'hidden' }}>
             <h4 style={{ margin: 0, color: 'white', fontSize: 14, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{userName}</h4>
             <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: 12, textTransform: 'capitalize' }}>{userRole}</p>
           </div>
         </div>
         
-        <nav style={{ overflowY: 'auto', paddingRight: 4, marginBottom: 16 }}>
+        <nav>
           {visibleMenus.map(m => (
             <Link key={m.to} to={m.to} className={loc.pathname.startsWith(m.to) ? 'active' : ''} onClick={() => setIsMobileOpen(false)}>
               <span style={{ fontSize: '18px' }}>{m.icon}</span>
@@ -148,65 +138,66 @@ export default function Layout() {
           ))}
         </nav>
 
-        <button onClick={() => setIsDark(!isDark)} style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, transition: 'all 0.2s', fontWeight: 'bold' }}>
+        <button onClick={() => setIsDark(!isDark)} style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, transition: 'all 0.3s', fontWeight: 'bold' }}>
           {isDark ? <><FaMoon /> Mode Gelap</> : <><FaSun /> Mode Terang</>}
         </button>
 
-        <div style={{ position: 'relative', marginBottom: 16 }}>
-          <button onClick={() => setShowNotif(!showNotif)} style={{ background: 'rgba(255, 255, 255, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#fff', width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 'bold', transition: 'all 0.2s' }}>
-            <FaBell size={18} /> Notifikasi ({notifications.length})
-            {notifications.length > 0 && <span style={{ width: 10, height: 10, background: '#fbbf24', borderRadius: '50%', position: 'absolute', top: 10, right: 12, boxShadow: '0 0 0 2px #ec4899' }}></span>}
-          </button>
-          
-          {showNotif && (
-            <div style={{ position: 'absolute', bottom: '100%', left: 0, width: '320px', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 16, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', maxHeight: 350, overflowY: 'auto', zIndex: 1000, right: 0, margin: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 'bold', color: 'var(--text-main)' }}>Pemberitahuan</span>
-                {notifications.length > 0 && (
-                  <button onClick={handleMarkAllRead} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}>
-                    <FaCheckDouble /> Tandai Dibaca
-                  </button>
-                )}
-              </div>
-              {notifications.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Tidak ada notifikasi baru.</p>
-              ) : (
-                notifications.map((n) => (
-                  <div key={n.id} style={{ fontSize: 13, padding: '10px 0', borderBottom: '1px solid var(--border-color)', color: n.type === 'stok' ? '#ef4444' : '#3b82f6', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', gap: 6 }}><span>{n.type === 'stok' ? '⚠️' : '📄'}</span><span style={{ lineHeight: 1.4, color: 'var(--text-main)' }}>{n.message}</span></div>
-                    {n.type === 'stok' && <button onClick={getStockWaReminder} style={{ alignSelf: 'flex-start', background: '#25D366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}><FaWhatsapp /> Ingatkan Restock</button>}
-                    {n.type === 'invoice' && <button onClick={() => getInvoiceWaReminder(n)} style={{ alignSelf: 'flex-start', background: '#25D366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}><FaWhatsapp /> Tagih Pelanggan</button>}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-
-        <button 
-          onClick={async () => { if (await showConfirm('Konfirmasi', 'Yakin ingin keluar dari aplikasi?')) signOut() }} 
-          style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '12px', borderRadius: 10, fontWeight: 'bold', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-        >
+        <button onClick={async () => { if (await showConfirm('Konfirmasi', 'Yakin ingin keluar dari aplikasi?')) signOut() }} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '12px', borderRadius: 10, fontWeight: 'bold', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s' }}>
           Keluar
         </button>
       </aside>
 
       {isMobileOpen && <div className="mobile-overlay" onClick={() => setIsMobileOpen(false)}></div>}
-      
-      {/* AREA ANIMASI TRANSISI HALAMAN */}
+
       <main className="content">
         <AnimatePresence mode="wait">
-          <motion.div
-            key={loc.pathname}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
+          <motion.div key={loc.pathname} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3, ease: 'easeOut' }}>
             <Outlet />
           </motion.div>
         </AnimatePresence>
       </main>
+
+      <div className="bottom-nav">
+        <Link to="/dashboard" className={loc.pathname === '/dashboard' ? 'active' : ''}>
+          <FaChartPie /> <span>Dashboard</span>
+        </Link>
+        <Link to="/invoices" className={loc.pathname.startsWith('/invoices') ? 'active' : ''}>
+          <FaFileInvoiceDollar /> <span>Invoice</span>
+        </Link>
+        
+        <Link to="/invoices/new" className="fab-btn">
+          <FaPlus />
+        </Link>
+
+        <Link to="/products" className={loc.pathname.startsWith('/products') ? 'active' : ''}>
+          <FaBoxOpen /> <span>Produk</span>
+        </Link>
+        <button onClick={() => setIsMobileOpen(true)} style={{ background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, gap: 4, flex: 1 }}>
+          <FaBars size={20} /> <span>Menu</span>
+        </button>
+      </div>
+
+      {showNotif && (
+        <div className="mobile-overlay" onClick={() => setShowNotif(false)} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 60 }}>
+          <div style={{ background: 'var(--card-bg)', width: '90%', borderRadius: 12, padding: 16, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', zIndex: 1001 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 'bold', color: 'var(--text-main)' }}>Pemberitahuan</span>
+              {notifications.length > 0 && (
+                <button onClick={handleMarkAllRead} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}><FaCheckDouble /> Tandai Dibaca</button>
+              )}
+            </div>
+            {notifications.length === 0 ? <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>Tidak ada notifikasi baru.</p> : (
+              notifications.map((n) => (
+                <div key={n.id} style={{ fontSize: 13, padding: '10px 0', borderBottom: '1px solid var(--border-color)', color: n.type === 'stok' ? '#ef4444' : '#3b82f6', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6 }}><span>{n.type === 'stok' ? '⚠️' : '📄'}</span><span style={{ lineHeight: 1.4, color: 'var(--text-main)' }}>{n.message}</span></div>
+                  {n.type === 'stok' && <button onClick={getStockWaReminder} style={{ alignSelf: 'flex-start', background: '#25D366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}><FaWhatsapp /> Ingatkan Restock</button>}
+                  {n.type === 'invoice' && <button onClick={() => getInvoiceWaReminder(n)} style={{ alignSelf: 'flex-start', background: '#25D366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold' }}><FaWhatsapp /> Tagih Pelanggan</button>}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

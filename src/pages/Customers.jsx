@@ -30,13 +30,14 @@ export default function Customers() {
   async function fetchCustomers() {
     setLoading(true)
     const { data, error } = await supabase.from('customers').select('*').order('name')
-    if (error) showToast("Gagal memuat data: " + error.message, 'error')
+    if (error) showToast("Gagal memuat: " + error.message, 'error')
     else setCustomers(data)
     setLoading(false)
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!session) return showToast("Sesi tidak ditemukan.", "error")
     setIsSubmitting(true)
     const payload = { name, email: email || null, phone: phone || null, address: address || null, user_id: session.user.id }
     
@@ -109,29 +110,33 @@ export default function Customers() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxHeight: '50vh', overflowY: 'auto' }}>
               <div>
                 <h4 style={{ margin: '0 0 12px' }}>Transaksi</h4>
-                <table style={{ minWidth: '100%' }}>
-                  <thead><tr><th>Invoice</th><th>Total</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {historyInvoices.map(inv => (
-                      <tr key={inv.id}>
-                        <td><strong>{inv.invoice_number}</strong><br/><small>{formatTanggal(inv.issue_date)}</small></td>
-                        <td>{formatRupiah(inv.total)}</td>
-                        <td><span style={{ textTransform: 'uppercase', fontSize: 11, color: inv.status === 'paid' ? '#10b981' : '#f59e0b', fontWeight: 'bold' }}>{inv.status}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                  <table style={{ minWidth: '100%' }}>
+                    <thead><tr><th>Invoice</th><th>Total</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {historyInvoices.map(inv => (
+                        <tr key={inv.id}>
+                          <td><strong>{inv.invoice_number}</strong><br/><small>{formatTanggal(inv.issue_date)}</small></td>
+                          <td>{formatRupiah(inv.total)}</td>
+                          <td><span style={{ textTransform: 'uppercase', fontSize: 11, color: inv.status === 'paid' ? '#10b981' : '#f59e0b', fontWeight: 'bold' }}>{inv.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               <div>
                 <h4 style={{ margin: '0 0 12px' }}>Pembayaran</h4>
-                <table style={{ minWidth: '100%' }}>
-                  <thead><tr><th>Tanggal</th><th>Nominal</th></tr></thead>
-                  <tbody>
-                    {historyPayments.map(p => (
-                      <tr key={p.id}><td>{new Date(p.payment_date).toLocaleDateString('id-ID')}</td><td><strong style={{ color: '#10b981' }}>{formatRupiah(p.amount)}</strong></td></tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ overflowX: 'auto', width: '100%' }}>
+                  <table style={{ minWidth: '100%' }}>
+                    <thead><tr><th>Tanggal</th><th>Nominal</th></tr></thead>
+                    <tbody>
+                      {historyPayments.map(p => (
+                        <tr key={p.id}><td>{new Date(p.payment_date).toLocaleDateString('id-ID')}</td><td><strong style={{ color: '#10b981' }}>{formatRupiah(p.amount)}</strong></td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </>
@@ -155,28 +160,30 @@ export default function Customers() {
       </div>
 
       {loading ? <div className="skeleton" style={{ height: 200 }}></div> : (
-        <table>
-          <thead><tr><th>Nama</th><th>Kontak</th><th>Alamat</th><th>Aksi</th></tr></thead>
-          <tbody>
-            {customers.map(c => (
-              <tr key={c.id}>
-                <td><strong>{c.name}</strong></td>
-                <td>
-                  {c.phone ? <a href={getWhatsAppLink(c.phone)} target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: 6 }}><FaWhatsapp size={18} /> {c.phone}</a> : '-'}
-                  <br/><small style={{ color: 'var(--text-muted)' }}>{c.email}</small>
-                </td>
-                <td>{c.address}</td>
-                <td>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button variant="primary" onClick={() => openHistory(c)}><FaHistory /> Riwayat</Button>
-                    <Button variant="secondary" onClick={() => editCustomer(c)}><FaEdit /> Edit</Button>
-                    <Button variant="danger" onClick={() => handleDelete(c.id)}><FaTrash /> Hapus</Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table>
+            <thead><tr><th>Nama</th><th>Kontak</th><th>Alamat</th><th>Aksi</th></tr></thead>
+            <tbody>
+              {customers.map(c => (
+                <tr key={c.id}>
+                  <td><strong>{c.name}</strong></td>
+                  <td>
+                    {c.phone ? <a href={getWhatsAppLink(c.phone)} target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: 6 }}><FaWhatsapp size={18} /> {c.phone}</a> : '-'}
+                    <br/><small style={{ color: 'var(--text-muted)' }}>{c.email}</small>
+                  </td>
+                  <td>{c.address}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button variant="primary" onClick={() => openHistory(c)}><FaHistory /> Riwayat</Button>
+                      <Button variant="secondary" onClick={() => editCustomer(c)}><FaEdit /> Edit</Button>
+                      <Button variant="danger" onClick={() => handleDelete(c.id)}><FaTrash /> Hapus</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
