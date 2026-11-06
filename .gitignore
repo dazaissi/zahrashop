@@ -1,4 +1,29 @@
-# Logs
+# ==========================================
+# DEPENDENCIES
+# ==========================================
+node_modules
+node_modules/
+
+# ==========================================
+# PRODUCTION BUILD
+# ==========================================
+dist
+dist/
+dist-ssr
+build/
+*.local
+
+# ==========================================
+# ENVIRONMENT VARIABLES (SANGAT PENTING!)
+# ==========================================
+.env
+.env.local
+.env.production
+.env.development
+
+# ==========================================
+# LOGS
+# ==========================================
 logs
 *.log
 npm-debug.log*
@@ -7,12 +32,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
+# ==========================================
+# EDITOR DIRECTORIES & FILES
+# ==========================================
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +44,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ==========================================
+# CACHE
+# ==========================================
+.vite/

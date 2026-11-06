@@ -12,6 +12,7 @@ import ZodiacConstellations from './components/ZodiacConstellations'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Customers from './pages/Customers'
+import CustomerDetail from './pages/CustomerDetail'
 import Products from './pages/Products'
 import Invoices from './pages/Invoices'
 import InvoiceForm from './pages/InvoiceForm'
@@ -52,6 +53,7 @@ export default function App() {
 
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/:id" element={<CustomerDetail />} />
             <Route path="/products" element={<Products />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/invoices/new" element={<InvoiceForm />} />

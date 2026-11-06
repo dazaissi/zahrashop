@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { formatRupiah } from '../lib/format'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
-import { FaChartPie, FaMoneyBillWave, FaHandHoldingUsd, FaArrowRight, FaBoxOpen, FaLightbulb } from 'react-icons/fa'
+import { FaChartPie, FaMoneyBillWave, FaHandHoldingUsd, FaArrowRight, FaBoxOpen, FaLightbulb, FaSyncAlt, FaCircle } from 'react-icons/fa'
 import { motion } from 'framer-motion'
 
 const COLORS = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b']
@@ -25,20 +25,13 @@ const AnimatedNumber = ({ value, prefix = 'Rp ' }) => {
     const steps = duration / 20
     let currentStep = 0
 
-    if (end === 0) {
-      setDisplayValue(0)
-      return
-    }
+    if (end === 0) { setDisplayValue(0); return }
 
     const timer = setInterval(() => {
       currentStep++
       const progress = Math.min(currentStep / steps, 1)
       setDisplayValue(Math.floor(end * progress))
-
-      if (progress >= 1) {
-        setDisplayValue(end)
-        clearInterval(timer)
-      }
+      if (progress >= 1) { setDisplayValue(end); clearInterval(timer) }
     }, 20)
 
     return () => clearInterval(timer)
@@ -58,6 +51,7 @@ export default function Dashboard() {
   const [paymentMethods, setPaymentMethods] = useState([])
   const [kritis, setKritis] = useState([])
   const [insights, setInsights] = useState([])
+  const [realtimeConnected, setRealtimeConnected] = useState(false)
   const [startDate, setStartDate] = useState(() => {
     const date = new Date()
     date.setDate(1)
@@ -67,37 +61,12 @@ export default function Dashboard() {
   const [activeFilter, setActiveFilter] = useState('bulan-ini')
   const [chartType, setChartType] = useState('keuangan')
 
-  useEffect(() => {
-    if (session?.user?.id && profile?.id) loadData()
-  }, [session?.user?.id, profile?.id, startDate, endDate])
+  const fetchRef = useRef(null)
+  const timerRef = useRef(null)
 
-  function setQuickFilter(type) {
-    const today = new Date()
-    let start = new Date(today)
-    let end = new Date(today)
-
-    if (type === 'bulan-ini') {
-      start = new Date(today.getFullYear(), today.getMonth(), 1)
-    } else if (type === 'bulan-lalu') {
-      start = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-      end = new Date(today.getFullYear(), today.getMonth(), 0)
-    } else if (type === '6-bulan') {
-      start = new Date(today.getFullYear(), today.getMonth() - 5, 1)
-    } else if (type === 'tahun-ini') {
-      start = new Date(today.getFullYear(), 0, 1)
-    } else if (type === 'semua') {
-      start = new Date(2000, 0, 1)
-    }
-
-    setStartDate(getLocalDate(start))
-    setEndDate(getLocalDate(end))
-    setActiveFilter(type)
-  }
-
-  async function loadData() {
+  const loadData = useCallback(async ({ silent = false } = {}) => {
     if (!session?.user?.id || !profile?.id) return
-
-    setLoading(true)
+    if (!silent) setLoading(true)
     setErrorMessage('')
 
     try {
@@ -120,18 +89,14 @@ export default function Dashboard() {
 
       const productQuery = supabase
         .from('products')
-        .select('id, name, stock, min_stock')
+        .select('id, name, stock, min_stock, product_type')
         .order('name')
 
       const requests = [invoiceQuery, productQuery]
 
       if (isOwner) {
         requests.push(
-          supabase
-            .from('expenses')
-            .select('amount, date')
-            .gte('date', startDate)
-            .lte('date', endDate)
+          supabase.from('expenses').select('amount, date').gte('date', startDate).lte('date', endDate)
         )
       }
 
@@ -193,9 +158,12 @@ export default function Dashboard() {
         })
       }
 
+      // Fix: exclude produk digital & produk dengan min_stock = 0 dari "kritis"
       const kritisArr = products.filter(product => {
+        if (product.product_type === 'digital') return false
         const stock = Number(product.stock) || 0
         const minStock = Number(product.min_stock) || 0
+        if (minStock <= 0) return false
         return stock <= minStock
       })
 
@@ -204,8 +172,7 @@ export default function Dashboard() {
         .slice(0, 5)
         .map(([name, value]) => ({ name, value }))
 
-      const sortedPayments = Object.entries(metodeBayar)
-        .map(([name, value]) => ({ name, value }))
+      const sortedPayments = Object.entries(metodeBayar).map(([name, value]) => ({ name, value }))
 
       setSummary({
         uangMasuk: totalUangMasuk,
@@ -215,44 +182,98 @@ export default function Dashboard() {
       })
 
       setChartKeuangan(
-        Object.keys(keuanganPerHari)
-          .sort((a, b) => new Date(a) - new Date(b))
-          .map(date => keuanganPerHari[date])
+        Object.keys(keuanganPerHari).sort((a, b) => new Date(a) - new Date(b)).map(date => keuanganPerHari[date])
       )
-
       setTopProducts(sortedProducts)
       setPaymentMethods(sortedPayments)
       setKritis(kritisArr)
 
       const newInsights = []
-
-      if (invoices.length > 0) {
-        newInsights.push(`Terdapat ${invoices.length} transaksi invoice pada periode yang dipilih.`)
-      } else {
-        newInsights.push('Belum ada transaksi pada periode yang dipilih.')
-      }
+      if (invoices.length > 0) newInsights.push(`Terdapat ${invoices.length} transaksi invoice pada periode yang dipilih.`)
+      else newInsights.push('Belum ada transaksi pada periode yang dipilih.')
 
       newInsights.push(`Total barang terjual sebanyak ${totalBarangTerjual} pcs.`)
 
       if (sortedProducts.length > 0) {
         newInsights.push(`Produk terlaris adalah ${sortedProducts[0].name}, dengan penjualan ${sortedProducts[0].value} pcs.`)
       }
-
       if (kritisArr.length > 0) {
         newInsights.push(`Ada ${kritisArr.length} produk yang stoknya sudah mencapai batas minimum. Segera periksa stok.`)
       }
-
       if (isOwner && totalPiutang > 0) {
         newInsights.push(`Masih ada piutang sebesar ${formatRupiah(totalPiutang)} yang belum diterima.`)
       }
-
       setInsights(newInsights)
+
     } catch (error) {
       console.error('Gagal memuat Dashboard:', error)
-      setErrorMessage(error.message || 'Terjadi kesalahan saat memuat data.')
+      if (!silent) setErrorMessage(error.message || 'Terjadi kesalahan saat memuat data.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
+  }, [session?.user?.id, profile?.id, startDate, endDate])
+
+  useEffect(() => { fetchRef.current = loadData }, [loadData])
+
+  useEffect(() => {
+    if (session?.user?.id && profile?.id) loadData()
+  }, [session?.user?.id, profile?.id, startDate, endDate, loadData])
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!session?.user?.id || !profile?.id) return
+    const ch = supabase.channel(`dashboard-rt-${session.user.id}-${crypto.randomUUID()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        timerRef.current = setTimeout(() => fetchRef.current?.({ silent: true }), 400)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_payments' }, () => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        timerRef.current = setTimeout(() => fetchRef.current?.({ silent: true }), 400)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        timerRef.current = setTimeout(() => fetchRef.current?.({ silent: true }), 400)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        timerRef.current = setTimeout(() => fetchRef.current?.({ silent: true }), 400)
+      })
+      .subscribe(s => setRealtimeConnected(s === 'SUBSCRIBED'))
+
+    return () => {
+      setRealtimeConnected(false)
+      supabase.removeChannel(ch)
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [session?.user?.id, profile?.id])
+
+  // Refetch saat tab aktif kembali
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchRef.current?.({ silent: true }) }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [session?.user?.id])
+
+  function setQuickFilter(type) {
+    const today = new Date()
+    let start = new Date(today)
+    let end = new Date(today)
+    if (type === 'bulan-ini') start = new Date(today.getFullYear(), today.getMonth(), 1)
+    else if (type === 'bulan-lalu') {
+      start = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      end = new Date(today.getFullYear(), today.getMonth(), 0)
+    } else if (type === '6-bulan') start = new Date(today.getFullYear(), today.getMonth() - 5, 1)
+    else if (type === 'tahun-ini') start = new Date(today.getFullYear(), 0, 1)
+    else if (type === 'semua') start = new Date(2000, 0, 1)
+    setStartDate(getLocalDate(start))
+    setEndDate(getLocalDate(end))
+    setActiveFilter(type)
   }
 
   const AnimatedCard = ({ to, title, value, icon, colorClass, textColor, delay, isMoney = false }) => (
@@ -276,9 +297,17 @@ export default function Dashboard() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ margin: 0 }}>Dashboard</h1>
+          <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+            Dashboard
+            <span title={realtimeConnected ? 'Realtime aktif' : 'Realtime mati'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: realtimeConnected ? '#dcfce7' : '#fee2e2', color: realtimeConnected ? '#166534' : '#991b1b' }}>
+              <FaCircle size={6} /> {realtimeConnected ? 'LIVE' : 'OFFLINE'}
+            </span>
+          </h1>
           <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>Ringkasan aktivitas bisnis Zahra Shop</p>
         </div>
+        <button className="filter-btn" onClick={() => loadData()} disabled={loading} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px' }}>
+          <FaSyncAlt style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} /> Refresh
+        </button>
       </div>
 
       <div className="card" style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -301,7 +330,7 @@ export default function Dashboard() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)' }}>Sampai:</span>
-            <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setActiveFilter('manual') }} style={{ width: 'auto', padding: '8px 12px' }} />
+            <input type="date" value={endDate} min={startDate} onChange={e => { setEndDate(e.target.value); setActiveFilter('manual') }} style={{ width: 'auto', padding: '8px 12px' }} />
           </div>
         </div>
       </div>
@@ -315,12 +344,10 @@ export default function Dashboard() {
       ) : errorMessage ? (
         <div className="card" style={{ border: '1px solid #fecaca' }}>
           <p style={{ color: '#ef4444', marginTop: 0 }}>Gagal memuat Dashboard: {errorMessage}</p>
-          <button className="filter-btn active" onClick={loadData}>Coba Lagi</button>
+          <button className="filter-btn active" onClick={() => loadData()}>Coba Lagi</button>
         </div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          
-          {/* KARTU INSIGHT (Diubah menjadi lebih elegan) */}
           <div className="card" style={{ marginBottom: 24, background: 'linear-gradient(135deg, rgba(236,72,153,0.95) 0%, rgba(190,24,93,0.95) 100%)', color: 'white', border: 'none', backdropFilter: 'blur(10px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <div style={{ background: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 }}><FaLightbulb size={22} color="white" /></div>
@@ -362,10 +389,7 @@ export default function Dashboard() {
                     <BarChart data={chartKeuangan} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
                       <XAxis dataKey="tanggal" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={value => `Rp ${value / 1000}k`} />
-                      <Tooltip 
-                        formatter={value => formatRupiah(value)} 
-                        contentStyle={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 8px 24px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)' }} 
-                      />
+                      <Tooltip formatter={value => formatRupiah(value)} contentStyle={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 8px 24px rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)' }} />
                       <Legend verticalAlign="top" height={36} iconType="circle" />
                       <Bar dataKey="uangMasuk" name="Uang Masuk" fill="#10b981" radius={[6, 6, 0, 0]} barSize={30} animationDuration={1500} />
                       <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#ef4444" radius={[6, 6, 0, 0]} barSize={30} animationDuration={1500} />
