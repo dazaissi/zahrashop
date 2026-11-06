@@ -113,7 +113,7 @@ invoice-app/
 │   ├── main.jsx                # Entry point
 │   ├── styles.css              # Styling global
 │   └── supabaseClient.js       # Konfigurasi Supabase
-├── .env                        # Environment variables (JANGAN di-commit!)
+├── .env                        # Environment variables 
 ├── .gitignore
 ├── package.json
 ├── vite.config.js
