@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
-import { formatRupiah } from '../lib/format'
-import { logActivity } from '../lib/logger' // <-- TAMBAHAN
+import { formatRupiah, formatTanggal } from '../lib/format' // Tambah formatTanggal
+import { logActivity } from '../lib/logger'
 import BarcodeScanner from '../components/BarcodeScanner'
-import { FaBoxOpen, FaEdit, FaTrash, FaBarcode, FaMinusCircle, FaFileExcel, FaFileExport, FaSearch, FaTimes, FaTags, FaCheck, FaSyncAlt, FaCircle } from 'react-icons/fa'
+import { FaBoxOpen, FaEdit, FaTrash, FaBarcode, FaMinusCircle, FaFileExcel, FaFileExport, FaSearch, FaTimes, FaTags, FaCheck, FaSyncAlt, FaCircle, FaHistory } from 'react-icons/fa'
 import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
+import Modal from '../components/ui/Modal' // Import Modal
 import * as XLSX from 'xlsx'
 
 const NET_WEIGHT_UNITS = [{ value: 'g', label: 'Gram (g)' }, { value: 'kg', label: 'Kilogram (kg)' }, { value: 'ml', label: 'Mililiter (ml)' }, { value: 'L', label: 'Liter (L)' }]
@@ -83,6 +84,12 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [customCategories, setCustomCategories] = useState([])
 
+  // STATE UNTUK KARTU STOK
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyProduct, setHistoryProduct] = useState(null)
+  const [historyMovements, setHistoryMovements] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+
   const userId = session?.user?.id
   const isDigital = productType === 'digital'
 
@@ -156,6 +163,26 @@ export default function Products() {
     })
   }, [products, searchTerm, categoryFilter])
 
+  // FUNGSI KARTU STOK
+  async function handleViewHistory(product) {
+    setHistoryProduct(product)
+    setShowHistory(true)
+    setLoadingHistory(true)
+    try {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setHistoryMovements(data || [])
+    } catch (err) {
+      showToast('Gagal memuat riwayat stok: ' + err.message, 'error')
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
   function resetForm() {
     setId(null); setName(''); setCategory(''); setIsAddingCategory(false); setNewCategory(''); setSku(''); setPrice(''); setCost(''); setStock(''); setMinStock(''); setNetWeight(''); setNetWeightUnit('g'); setProductType('physical'); setProviderName('')
   }
@@ -208,7 +235,6 @@ export default function Products() {
       if (id) {
         const { error } = await supabase.from('products').update(payload).eq('id', id)
         if (error) throw error
-        
         try { await logActivity(userId, 'EDIT_PRODUK', `Memperbarui produk: ${productName}`) } catch (e) {}
         showToast('Produk berhasil diperbarui!', 'success')
       } else {
@@ -218,11 +244,10 @@ export default function Products() {
           const { error: movementError } = await supabase.from('stock_movements').insert([{ user_id: userId, product_id: newProduct.id, change: initialStock, reason: 'initial_stock' }])
           if (movementError) {
             const { error: rollbackError } = await supabase.from('products').delete().eq('id', newProduct.id)
-            if (rollbackError) { console.error('Product rollback error:', rollbackError); throw new Error('Histori stok gagal disimpan dan produk belum berhasil dibatalkan. Periksa database.') }
+            if (rollbackError) { throw new Error('Histori stok gagal disimpan dan produk belum berhasil dibatalkan. Periksa database.') }
             throw movementError
           }
         }
-        
         try { await logActivity(userId, 'TAMBAH_PRODUK', `Menambahkan produk baru: ${productName}`) } catch (e) {}
         showToast('Produk berhasil ditambahkan!', 'success')
       }
@@ -261,10 +286,9 @@ export default function Products() {
       const { error: movementError } = await supabase.from('stock_movements').insert([{ user_id: userId, product_id: product.id, change: isAdding ? qty : -qty, reason: isAdding ? 'restock' : `adjustment: ${reason.trim()}` }])
       if (movementError) {
         const { error: rollbackError } = await supabase.from('products').update({ stock: oldStock }).eq('id', product.id).eq('stock', newStock)
-        if (rollbackError) { console.error('Stock rollback error:', rollbackError); throw new Error('Histori stok gagal disimpan dan rollback stok juga gagal. Periksa data stok secara manual.') }
+        if (rollbackError) { throw new Error('Histori stok gagal disimpan dan rollback stok juga gagal. Periksa data stok secara manual.') }
         throw movementError
       }
-      
       try { await logActivity(userId, 'UPDATE_STOK', `Mengubah stok ${product.name}: ${oldStock} -> ${newStock} (${isAdding ? '+' : '-'}${qty})`) } catch (e) {}
       showToast(`Stok ${product.name} berhasil diperbarui!`, 'success')
       await fetchProducts({ silent: true })
@@ -286,9 +310,7 @@ export default function Products() {
     try {
       const { error } = await supabase.from('products').delete().eq('id', product.id)
       if (error) throw error
-      
       if (id === product.id) resetForm()
-      
       try { await logActivity(userId, 'HAPUS_PRODUK', `Menghapus produk: ${product.name}`) } catch (e) {}
       showToast('Produk berhasil dihapus!', 'success')
       await fetchProducts({ silent: true })
@@ -339,11 +361,10 @@ export default function Products() {
         if (movementError) {
           const ids = insertedProducts.map(product => product.id)
           const { error: rollbackError } = await supabase.from('products').delete().in('id', ids)
-          if (rollbackError) { console.error('Import rollback error:', rollbackError); throw new Error('Histori import gagal dan rollback juga gagal. Periksa database.') }
+          if (rollbackError) { throw new Error('Histori import gagal dan rollback juga gagal. Periksa database.') }
           throw movementError
         }
       }
-      
       try { await logActivity(userId, 'IMPORT_PRODUK', `Mengimpor ${insertedProducts.length} produk dari file Excel`) } catch (e) {}
       showToast(`Berhasil mengimport ${insertedProducts.length} produk!`, 'success')
       await fetchProducts({ silent: true })
@@ -395,6 +416,44 @@ export default function Products() {
 
   return (
     <div>
+      {/* MODAL KARTU STOK */}
+      <Modal isOpen={showHistory} onClose={() => setShowHistory(false)} title={`Riwayat Stok: ${historyProduct?.name}`} maxWidth={600}>
+        {loadingHistory ? (
+          <div className="skeleton" style={{ height: 200 }} />
+        ) : historyMovements.length === 0 ? (
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Belum ada riwayat pergerakan stok untuk produk ini.</p>
+        ) : (
+          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            <table style={{ boxShadow: 'none', border: '1px solid var(--border-color)' }}>
+              <thead style={{ position: 'sticky', top: 0, background: 'var(--card-bg)' }}>
+                <tr><th>Waktu</th><th>Perubahan</th><th>Keterangan</th></tr>
+              </thead>
+              <tbody>
+                {historyMovements.map(m => (
+                  <tr key={m.id}>
+                    <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{new Date(m.created_at).toLocaleString('id-ID')}</td>
+                    <td>
+                      <strong style={{ color: m.change > 0 ? '#10b981' : '#ef4444' }}>
+                        {m.change > 0 ? '+' : ''}{m.change}
+                      </strong>
+                    </td>
+                    <td style={{ fontSize: 13, textTransform: 'capitalize' }}>
+                      {m.reason === 'initial_stock' ? 'Stok Awal' : 
+                       m.reason === 'restock' ? 'Restock (Tambah)' : 
+                       m.reason === 'stock_opname' ? 'Stock Opname' : 
+                       m.reason.replace('adjustment: ', 'Penyesuaian: ')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ marginTop: 16, textAlign: 'right' }}>
+          <Button variant="secondary" onClick={() => setShowHistory(false)}>Tutup</Button>
+        </div>
+      </Modal>
+
       {showScanner && (
         <BarcodeScanner onScan={(code) => { setSku(code); setShowScanner(false) }} onClose={() => setShowScanner(false)} />
       )}
@@ -539,14 +598,13 @@ export default function Products() {
                             <Button variant="success" onClick={() => handleStockChange(product, true)} disabled={isSubmitting}><FaBoxOpen /> + Stok</Button>
                             <Button variant="warning" onClick={() => handleStockChange(product, false)} disabled={isSubmitting}><FaMinusCircle /> - Stok</Button>
                           </>)}
+                          <Button variant="secondary" onClick={() => handleViewHistory(product)} disabled={isSubmitting} title="Riwayat Stok">
+                            <FaHistory />
+                          </Button>
                           {canEditProduct && (<Button variant="secondary" onClick={() => editProduct(product)} disabled={isSubmitting}><FaEdit /> Edit</Button>)}
-                          
                           {canDelete && (
-                            <Button variant="danger" onClick={() => handleDelete(product)} disabled={isSubmitting}>
-                              <FaTrash /> Hapus
-                            </Button>
+                            <Button variant="danger" onClick={() => handleDelete(product)} disabled={isSubmitting}><FaTrash /> Hapus</Button>
                           )}
-                          
                         </div>
                       </td>
                     </tr>

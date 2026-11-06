@@ -4,7 +4,8 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { formatTanggal } from '../lib/format'
-import { FaSearch, FaTimes, FaSyncAlt, FaFilter } from 'react-icons/fa'
+import { FaSearch, FaTimes, FaSyncAlt, FaFilter, FaFileExcel } from 'react-icons/fa'
+import Button from '../components/ui/Button'
 
 const MAX_ROWS = 500
 const RANGE_OPTIONS = [
@@ -117,6 +118,31 @@ export default function ActivityLog() {
     })
   }, [logs, actionFilter, searchTerm])
 
+  function handleExportCSV() {
+    if (filteredLogs.length === 0) return showToast('Tidak ada log untuk diexport.', 'error')
+    
+    const headers = ['Waktu', 'Aksi', 'Keterangan']
+    const escapeCSV = value => `"${String(value ?? '').replace(/"/g, '""')}"`
+    
+    const rows = filteredLogs.map(l => [
+      new Date(l.created_at).toLocaleString('id-ID'),
+      l.action || '',
+      l.details || ''
+    ])
+
+    const csvContent = '\uFEFF' + [headers, ...rows].map(row => row.map(escapeCSV).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Riwayat_Aktivitas_${getLocalDate()}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    showToast(`Berhasil export ${rows.length} log aktivitas!`, 'success')
+  }
+
   if (!roleChecked || loading) {
     return (
       <div>
@@ -143,9 +169,14 @@ export default function ActivityLog() {
           <h1 style={{ margin: 0 }}>Riwayat Aktivitas</h1>
           <p style={{ color: 'var(--text-muted)', margin: '6px 0 0' }}>Catatan aktivitas toko ({filteredLogs.length} dari {logs.length}).</p>
         </div>
-        <button className="filter-btn active" onClick={() => fetchLogs()} disabled={loading}>
-          <FaSyncAlt /> Muat Ulang
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="success" onClick={handleExportCSV} disabled={filteredLogs.length === 0}>
+            <FaFileExcel /> Export CSV
+          </Button>
+          <button className="filter-btn active" onClick={() => fetchLogs()} disabled={loading}>
+            <FaSyncAlt /> Muat Ulang
+          </button>
+        </div>
       </div>
 
       {truncated && (
