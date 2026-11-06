@@ -244,9 +244,6 @@ export default function Expenses() {
         <div>
           <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
             <FaWallet color="var(--primary)" /> Keuangan & Pengeluaran
-            <span title={realtimeConnected ? 'Realtime aktif' : 'Realtime tidak aktif'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: realtimeConnected ? '#dcfce7' : '#fee2e2', color: realtimeConnected ? '#166534' : '#991b1b' }}>
-              <FaCircle size={6} /> {realtimeConnected ? 'LIVE' : 'OFFLINE'}
-            </span>
           </h1>
           <p style={{ color: 'var(--text-muted)', margin: '4px 0 0', fontSize: 14 }}>Lacak semua uang keluar untuk bisnismu di sini.</p>
         </div>

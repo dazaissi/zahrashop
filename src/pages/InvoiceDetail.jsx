@@ -269,9 +269,6 @@ export default function InvoiceDetail() {
           <Link to="/invoices" className="btn-back">&larr; Kembali ke Daftar</Link>
           <h1 style={{ margin: 0, fontSize: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
             Detail Invoice
-            <span title={realtimeConnected ? 'Realtime aktif' : 'Realtime mati'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: realtimeConnected ? '#dcfce7' : '#fee2e2', color: realtimeConnected ? '#166534' : '#991b1b' }}>
-              <FaCircle size={6} /> {realtimeConnected ? 'LIVE' : 'OFFLINE'}
-            </span>
           </h1>
         </div>
 

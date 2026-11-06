@@ -263,9 +263,6 @@ export default function CustomerDetail() {
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             Detail Pelanggan
-            <span title={realtimeConnected ? 'Realtime aktif' : 'Realtime tidak aktif'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: realtimeConnected ? '#dcfce7' : '#fee2e2', color: realtimeConnected ? '#166534' : '#991b1b' }}>
-              <FaCircle size={6} /> {realtimeConnected ? 'LIVE' : 'OFFLINE'}
-            </span>
           </h1>
           <p style={{ color: 'var(--text-muted)', margin: '4px 0 0' }}>Informasi dan riwayat transaksi pelanggan.</p>
         </div>

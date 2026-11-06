@@ -84,9 +84,6 @@ export default function Invoices() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h1 style={{ margin: 0 }}>Daftar Invoice</h1>
-          <span title={realtimeConnected ? 'Realtime aktif' : 'Realtime mati'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: realtimeConnected ? '#dcfce7' : '#fee2e2', color: realtimeConnected ? '#166534' : '#991b1b' }}>
-            <FaCircle size={6} /> {realtimeConnected ? 'LIVE' : 'OFFLINE'}
-          </span>
         </div>
         
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -320,9 +320,6 @@ export default function Customers() {
         <div>
           <h1 style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 12 }}>
             Data Pelanggan
-            <span title={realtimeConnected ? 'Realtime aktif' : 'Realtime tidak aktif'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: realtimeConnected ? '#dcfce7' : '#fee2e2', color: realtimeConnected ? '#166534' : '#991b1b' }}>
-              <FaCircle size={6} /> {realtimeConnected ? 'LIVE' : 'OFFLINE'}
-            </span>
           </h1>
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>Kelola informasi dan riwayat transaksi pelanggan.</p>
         </div>

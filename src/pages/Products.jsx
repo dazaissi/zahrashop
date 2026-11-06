@@ -460,9 +460,6 @@ export default function Products() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h1 style={{ margin: 0 }}>Produk & Stok</h1>
-          <span title={realtimeConnected ? 'Terhubung ke realtime' : 'Realtime tidak terhubung'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: realtimeConnected ? '#dcfce7' : '#fee2e2', color: realtimeConnected ? '#166534' : '#991b1b' }}>
-            <FaCircle size={6} />{realtimeConnected ? 'LIVE' : 'OFFLINE'}
-          </span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="secondary" onClick={handleManualRefresh} disabled={loading || isSubmitting}>

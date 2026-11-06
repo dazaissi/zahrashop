@@ -299,9 +299,6 @@ export default function Dashboard() {
         <div>
           <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
             Dashboard
-            <span title={realtimeConnected ? 'Realtime aktif' : 'Realtime mati'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: realtimeConnected ? '#dcfce7' : '#fee2e2', color: realtimeConnected ? '#166534' : '#991b1b' }}>
-              <FaCircle size={6} /> {realtimeConnected ? 'LIVE' : 'OFFLINE'}
-            </span>
           </h1>
           <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontWeight: 500 }}>Ringkasan aktivitas bisnis Zahra Shop</p>
         </div>
