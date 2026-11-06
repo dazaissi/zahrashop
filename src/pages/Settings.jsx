@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
+import { logActivity } from '../lib/logger' // <-- TAMBAHAN
 import Button from '../components/ui/Button'
 import { FaUserCircle, FaCamera, FaImage } from 'react-icons/fa'
 
@@ -54,8 +55,18 @@ export default function Settings() {
 
     const { error } = await supabase.from('profiles').upsert({ id: session.user.id, business_name: businessName, bank_info: bankInfo, phone, email, address, website, logo_url: finalLogoUrl, avatar_url: finalAvatarUrl })
     
-    if (error) showToast('Gagal menyimpan profil: ' + error.message, 'error')
-    else { showToast('Pengaturan berhasil disimpan!', 'success'); setLogoUrl(finalLogoUrl); setLogoFile(null); setAvatarUrl(finalAvatarUrl); setAvatarFile(null) }
+    if (error) {
+      showToast('Gagal menyimpan profil: ' + error.message, 'error')
+    } else { 
+      // TAMBAHKAN LOG AKTIVITAS
+      try { await logActivity(session.user.id, 'UBAH_PENGATURAN', `Memperbarui profil & pengaturan bisnis: ${businessName}`) } catch (e) {}
+      
+      showToast('Pengaturan berhasil disimpan!', 'success')
+      setLogoUrl(finalLogoUrl)
+      setLogoFile(null)
+      setAvatarUrl(finalAvatarUrl)
+      setAvatarFile(null) 
+    }
     setIsSaving(false)
   }
 

@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { formatRupiah, formatTanggal, formatNumberInput } from '../lib/format'
+import { logActivity } from '../lib/logger' // <-- TAMBAHAN
 import { FaEdit, FaTrash, FaSave, FaWallet, FaPlus, FaReceipt, FaSyncAlt, FaCircle } from 'react-icons/fa'
 import Button from '../components/ui/Button'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
@@ -150,7 +151,10 @@ export default function Expenses() {
     if (!description.trim()) return showToast('Keterangan pengeluaran wajib diisi.', 'error')
     if (!Number.isFinite(nominal) || nominal <= 0) return showToast('Nominal pengeluaran harus lebih dari 0.', 'error')
     if (!date) return showToast('Tanggal pengeluaran wajib diisi.', 'error')
+    
     setIsSubmitting(true)
+    const wasEditing = Boolean(id)
+
     try {
       const payload = { description: description.trim(), amount: nominal, date, category, user_id: session.user.id }
       let result
@@ -161,6 +165,9 @@ export default function Expenses() {
       }
       if (result.error) throw result.error
       if (!result.data) throw new Error('Data tidak ditemukan atau kamu tidak memiliki izin mengubahnya.')
+      
+      try { await logActivity(session.user.id, wasEditing ? 'EDIT_PENGELUARAN' : 'TAMBAH_PENGELUARAN', `${wasEditing ? 'Memperbarui' : 'Mencatat'} pengeluaran: ${payload.description} (${formatRupiah(nominal)})`) } catch (e) {}
+      
       showToast(id ? 'Pengeluaran berhasil diperbarui!' : 'Pengeluaran berhasil dicatat!', 'success')
       resetForm()
       await fetchExpenses({ silent: true })
@@ -172,15 +179,19 @@ export default function Expenses() {
     }
   }
 
-  async function handleDelete(idToDelete) {
-    const confirmed = await showConfirm('Hapus Pengeluaran', 'Yakin ingin menghapus catatan pengeluaran ini?')
+  async function handleDelete(expense) {
+    const confirmed = await showConfirm('Hapus Pengeluaran', `Yakin ingin menghapus catatan pengeluaran "${expense.description}"?`)
     if (!confirmed) return
-    setDeletingId(idToDelete)
+    
+    setDeletingId(expense.id)
     try {
-      const { data, error } = await supabase.from('expenses').delete().eq('id', idToDelete).select('id').maybeSingle()
+      const { data, error } = await supabase.from('expenses').delete().eq('id', expense.id).select('id').maybeSingle()
       if (error) throw error
       if (!data) throw new Error('Data tidak ditemukan atau kamu tidak memiliki izin menghapusnya.')
-      if (id === idToDelete) resetForm()
+      
+      try { await logActivity(session.user.id, 'HAPUS_PENGELUARAN', `Menghapus pengeluaran: ${expense.description} (${formatRupiah(expense.amount)})`) } catch (e) {}
+      
+      if (id === expense.id) resetForm()
       showToast('Pengeluaran berhasil dihapus!', 'success')
       await fetchExpenses({ silent: true })
     } catch (err) {
@@ -375,7 +386,7 @@ export default function Expenses() {
                         <td>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                             <button type="button" onClick={() => handleEdit(ex)} title="Edit" style={{ background: 'var(--bg-color)', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)' }}><FaEdit size={14} /></button>
-                            <button type="button" onClick={() => handleDelete(ex.id)} disabled={deletingId === ex.id} title="Hapus" style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: deletingId === ex.id ? 'not-allowed' : 'pointer', opacity: deletingId === ex.id ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}><FaTrash size={14} /></button>
+                            <button type="button" onClick={() => handleDelete(ex)} disabled={deletingId === ex.id} title="Hapus" style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: deletingId === ex.id ? 'not-allowed' : 'pointer', opacity: deletingId === ex.id ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}><FaTrash size={14} /></button>
                           </div>
                         </td>
                       </tr>

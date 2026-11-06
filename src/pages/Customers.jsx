@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { formatRupiah } from '../lib/format'
+import { logActivity } from '../lib/logger' // <-- TAMBAHKAN IMPORT INI
 import {
   FaWhatsapp, FaHistory, FaEdit, FaTrash, FaSearch, FaUsers,
   FaShoppingBag, FaTimes, FaSave, FaTrophy, FaSyncAlt, FaCircle
@@ -198,6 +199,7 @@ export default function Customers() {
     if (!session) return showToast('Sesi tidak ditemukan.', 'error')
     if (!name.trim()) return showToast('Nama pelanggan wajib diisi.', 'error')
     setIsSubmitting(true)
+    
     const payload = {
       name: name.trim(),
       email: email.trim() || null,
@@ -205,7 +207,10 @@ export default function Customers() {
       address: address.trim() || null,
       user_id: session.user.id
     }
+    
     let errorMsg = null
+    const wasEditing = Boolean(id)
+
     if (id) {
       const { error } = await supabase.from('customers').update({
         name: payload.name, email: payload.email, phone: payload.phone, address: payload.address
@@ -215,10 +220,21 @@ export default function Customers() {
       const { error } = await supabase.from('customers').insert([payload])
       if (error) errorMsg = error.message
     }
+
     if (errorMsg) {
       showToast('Gagal menyimpan: ' + errorMsg, 'error')
     } else {
-      const wasEditing = Boolean(id)
+      // TAMBAHKAN LOG AKTIVITAS
+      try {
+        await logActivity(
+          session.user.id,
+          wasEditing ? 'EDIT_PELANGGAN' : 'TAMBAH_PELANGGAN',
+          `${wasEditing ? 'Memperbarui' : 'Menambahkan'} pelanggan: ${payload.name}`
+        )
+      } catch (logErr) {
+        console.error('Gagal mencatat log:', logErr)
+      }
+
       resetForm()
       await fetchCustomers({ silent: true })
       showToast(wasEditing ? 'Data pelanggan berhasil diperbarui!' : 'Pelanggan berhasil ditambahkan!', 'success')
@@ -227,17 +243,28 @@ export default function Customers() {
   }
 
   async function handleDelete(customer) {
-    if (!isOwner) {
-      showToast('Hanya owner yang dapat menghapus pelanggan.', 'error')
-      return
-    }
+    if (!isOwner) return showToast('Hanya owner yang dapat menghapus pelanggan.', 'error')
+    
     const confirmed = await showConfirm('Hapus Pelanggan', `Yakin ingin menghapus data pelanggan "${customer.name}"?`)
     if (!confirmed) return
+    
     const { error } = await supabase.from('customers').delete().eq('id', customer.id)
     if (error) {
       showToast('Gagal menghapus pelanggan: ' + error.message, 'error')
       return
     }
+    
+    // TAMBAHKAN LOG AKTIVITAS
+    try {
+      await logActivity(
+        session.user.id,
+        'HAPUS_PELANGGAN',
+        `Menghapus pelanggan: ${customer.name} (${customer.customer_code || '-'})`
+      )
+    } catch (logErr) {
+      console.error('Gagal mencatat log:', logErr)
+    }
+
     if (id === customer.id) resetForm()
     await fetchCustomers({ silent: true })
     showToast('Pelanggan berhasil dihapus.', 'success')

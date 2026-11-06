@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { formatRupiah } from '../lib/format'
+import { logActivity } from '../lib/logger' // <-- TAMBAHAN
 import BarcodeScanner from '../components/BarcodeScanner'
 import { FaBoxOpen, FaEdit, FaTrash, FaBarcode, FaMinusCircle, FaFileExcel, FaFileExport, FaSearch, FaTimes, FaTags, FaCheck, FaSyncAlt, FaCircle } from 'react-icons/fa'
 import Button from '../components/ui/Button'
@@ -86,8 +87,6 @@ export default function Products() {
   const isDigital = productType === 'digital'
 
   const userRole = String(profile?.role || '').toLowerCase()
-  
-  // PERBAIKAN: Hanya mutlak untuk Owner, Admin tidak boleh hapus
   const canEditStock = userRole === 'owner' || userRole === 'admin'
   const canEditProduct = userRole === 'owner' || userRole === 'admin'
   const canDelete = userRole === 'owner' 
@@ -200,12 +199,17 @@ export default function Products() {
     if (!Number.isFinite(productPrice) || productPrice < 0 || !Number.isFinite(productCost) || productCost < 0 || !Number.isInteger(minimumStock) || minimumStock < 0) return showToast('Periksa kembali harga dan batas stok.', 'error')
     if (weightValue !== null && (!Number.isFinite(weightValue) || weightValue <= 0)) return showToast('Netto harus lebih dari 0.', 'error')
     if (!id && !isDigital && (!Number.isInteger(initialStock) || initialStock < 0)) return showToast('Stok awal harus berupa bilangan bulat minimal 0.', 'error')
+    
     setIsSubmitting(true)
+    const wasEditing = Boolean(id)
+
     try {
       const payload = { name: productName, category: productCategory, sku: sku.trim() || null, price: productPrice, cost: productCost, product_type: productType, provider_name: isDigital ? providerName : null, min_stock: minimumStock, net_weight: weightValue, net_weight_unit: weightValue !== null ? netWeightUnit : null }
       if (id) {
         const { error } = await supabase.from('products').update(payload).eq('id', id)
         if (error) throw error
+        
+        try { await logActivity(userId, 'EDIT_PRODUK', `Memperbarui produk: ${productName}`) } catch (e) {}
         showToast('Produk berhasil diperbarui!', 'success')
       } else {
         const { data: newProduct, error } = await supabase.from('products').insert([{ ...payload, user_id: userId, stock: initialStock }]).select().single()
@@ -218,6 +222,8 @@ export default function Products() {
             throw movementError
           }
         }
+        
+        try { await logActivity(userId, 'TAMBAH_PRODUK', `Menambahkan produk baru: ${productName}`) } catch (e) {}
         showToast('Produk berhasil ditambahkan!', 'success')
       }
       resetForm()
@@ -258,6 +264,8 @@ export default function Products() {
         if (rollbackError) { console.error('Stock rollback error:', rollbackError); throw new Error('Histori stok gagal disimpan dan rollback stok juga gagal. Periksa data stok secara manual.') }
         throw movementError
       }
+      
+      try { await logActivity(userId, 'UPDATE_STOK', `Mengubah stok ${product.name}: ${oldStock} -> ${newStock} (${isAdding ? '+' : '-'}${qty})`) } catch (e) {}
       showToast(`Stok ${product.name} berhasil diperbarui!`, 'success')
       await fetchProducts({ silent: true })
     } catch (error) {
@@ -269,21 +277,19 @@ export default function Products() {
     }
   }
 
-  async function handleDelete(productId) {
+  async function handleDelete(product) {
     if (!userId) return
-    // PERBAIKAN: Lapisan keamanan kedua di fungsi
     if (!canDelete) return showToast('Hanya owner yang dapat menghapus produk.', 'error')
-    const confirmed = await showConfirm('Hapus Produk', 'Yakin ingin menghapus produk ini?')
+    const confirmed = await showConfirm('Hapus Produk', `Yakin ingin menghapus produk "${product.name}" ini?`)
     if (!confirmed) return
     setIsSubmitting(true)
     try {
-      const { error } = await supabase.from('products').delete().eq('id', productId)
+      const { error } = await supabase.from('products').delete().eq('id', product.id)
       if (error) throw error
       
-      if (id === productId) {
-        resetForm()
-      }
-
+      if (id === product.id) resetForm()
+      
+      try { await logActivity(userId, 'HAPUS_PRODUK', `Menghapus produk: ${product.name}`) } catch (e) {}
       showToast('Produk berhasil dihapus!', 'success')
       await fetchProducts({ silent: true })
     } catch (error) {
@@ -337,6 +343,8 @@ export default function Products() {
           throw movementError
         }
       }
+      
+      try { await logActivity(userId, 'IMPORT_PRODUK', `Mengimpor ${insertedProducts.length} produk dari file Excel`) } catch (e) {}
       showToast(`Berhasil mengimport ${insertedProducts.length} produk!`, 'success')
       await fetchProducts({ silent: true })
     } catch (error) {
@@ -533,9 +541,8 @@ export default function Products() {
                           </>)}
                           {canEditProduct && (<Button variant="secondary" onClick={() => editProduct(product)} disabled={isSubmitting}><FaEdit /> Edit</Button>)}
                           
-                          {/* PERBAIKAN: Tombol Hapus HANYA muncul jika canDelete bernilai true (Owner) */}
                           {canDelete && (
-                            <Button variant="danger" onClick={() => handleDelete(product.id)} disabled={isSubmitting}>
+                            <Button variant="danger" onClick={() => handleDelete(product)} disabled={isSubmitting}>
                               <FaTrash /> Hapus
                             </Button>
                           )}
