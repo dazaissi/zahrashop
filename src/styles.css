@@ -183,40 +183,173 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* BUTTONS */
+button, .btn-primary, .btn-secondary, .btn-action {
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+button:disabled, .btn-primary:disabled, .btn-secondary:disabled, .btn-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* PRIMARY (Solid Pink Gradient) - untuk CTA Utama */
 .btn-primary {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-  color: white; border: none; padding: 12px 24px; border-radius: 10px;
-  font-size: 14px; font-weight: 700; cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3); text-decoration: none;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+  text-decoration: none;
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(236, 72, 153, 0.5); filter: brightness(1.1);
+  box-shadow: 0 8px 25px rgba(236, 72, 153, 0.45);
+  filter: brightness(1.08);
 }
 
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.3);
+}
+
+/* SECONDARY (Soft Pink) - untuk aksi pendukung */
 .btn-secondary {
-  background-color: rgba(252, 231, 243, 0.9); color: #be185d;
-  border: 1px solid rgba(251, 207, 232, 0.5); padding: 12px; border-radius: 10px;
-  cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.3s ease;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: rgba(252, 231, 243, 0.9);
+  color: #be185d;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid rgba(251, 207, 232, 0.6);
   backdrop-filter: blur(8px);
 }
 
-.btn-secondary:hover { background-color: #fbcfe8; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(236, 72, 153, 0.15); }
+.btn-secondary:hover:not(:disabled) {
+  background: #fbcfe8;
+  border-color: rgba(236, 72, 153, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.15);
+}
+
+/* DARK MODE */
+[data-theme="dark"] .btn-secondary {
+  background: rgba(236, 72, 153, 0.15);
+  color: #fbcfe8;
+  border-color: rgba(236, 72, 153, 0.3);
+}
+[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
+  background: rgba(236, 72, 153, 0.25);
+  border-color: rgba(236, 72, 153, 0.5);
+}
 
 /* ACTION BUTTONS */
 .btn-action {
-  padding: 6px 12px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  border: none; cursor: pointer; font-weight: bold; font-size: 13px; text-decoration: none; transition: all 0.2s;
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
 }
-.btn-action-primary { background: rgba(252, 231, 243, 0.9); color: #ec4899; }
-.btn-action-edit { background: rgba(243, 244, 246, 0.9); color: #4b5563; }
-.btn-action-delete { background: rgba(254, 226, 226, 0.9); color: #ef4444; }
-.btn-action-green { background: rgba(220, 252, 231, 0.9); color: #10b981; }
-.btn-action-warning { background: rgba(254, 243, 199, 0.9); color: #f59e0b; }
+
+.btn-action svg {
+  font-size: 12px;
+}
+
+.btn-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.btn-action:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Variants */
+.btn-action-primary {
+  background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.25);
+}
+.btn-action-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.35);
+}
+
+.btn-action-edit {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  border-color: rgba(99, 102, 241, 0.2);
+}
+.btn-action-edit:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.btn-action-delete {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+.btn-action-delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.btn-action-green {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+.btn-action-green:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.btn-action-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.2);
+}
+.btn-action-warning:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* DARK MODE */
+[data-theme="dark"] .btn-action-edit {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.35);
+}
+[data-theme="dark"] .btn-action-delete {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+[data-theme="dark"] .btn-action-green {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+[data-theme="dark"] .btn-action-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+}
 
 /* TABLE (Kaca Transparan) */
 .table-responsive { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; }
@@ -664,3 +797,67 @@ tr:hover td { background-color: rgba(236, 72, 153, 0.1); }
 [data-theme="dark"] .cat-orange { background: rgba(245, 158, 11, 0.25); color: #fde68a; border-color: rgba(245, 158, 11, 0.5); }
 [data-theme="dark"] .cat-teal { background: rgba(20, 184, 166, 0.25); color: #99f6e4; border-color: rgba(20, 184, 166, 0.5); }
 [data-theme="dark"] .cat-indigo { background: rgba(99, 102, 241, 0.25); color: #c7d2fe; border-color: rgba(99, 102, 241, 0.5); }
+
+
+.themed-scroll-x {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) rgba(236, 72, 153, 0.08);
+}
+
+.themed-scroll-x::-webkit-scrollbar {
+  height: 8px;
+}
+
+.themed-scroll-x::-webkit-scrollbar-track {
+  background: rgba(236, 72, 153, 0.08);
+  border-radius: 10px;
+  margin: 0 8px;
+}
+
+.themed-scroll-x::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #f472b6 0%, #ec4899 100%);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.themed-scroll-x::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #ec4899 0%, #be185d 100%);
+  background-clip: padding-box;
+}
+
+/* Dark Mode */
+[data-theme="dark"] .themed-scroll-x::-webkit-scrollbar-track {
+  background: rgba(236, 72, 153, 0.15);
+}
+[data-theme="dark"] .themed-scroll-x::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #ec4899 0%, #be185d 100%);
+  background-clip: padding-box;
+}
+
+/* Terapkan juga ke semua table responsive */
+.table-responsive {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
+}
+.table-responsive::-webkit-scrollbar {
+  height: 8px;
+}
+.table-responsive::-webkit-scrollbar-track {
+  background: rgba(236, 72, 153, 0.05);
+  border-radius: 10px;
+  margin: 0 8px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #f472b6 0%, #ec4899 100%);
+  border-radius: 10px;
+}
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #ec4899 0%, #be185d 100%);
+}
+[data-theme="dark"] .table-responsive::-webkit-scrollbar-track {
+  background: rgba(236, 72, 153, 0.15);
+}
+[data-theme="dark"] .table-responsive::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #ec4899 0%, #be185d 100%);
+}

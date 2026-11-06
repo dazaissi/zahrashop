@@ -4,9 +4,17 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+# KUNCI PERBAIKAN: Cegah deploy saling membatalkan
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -18,7 +26,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
@@ -34,3 +43,4 @@ jobs:
         with:
           folder: dist
           branch: gh-pages
+          clean: true

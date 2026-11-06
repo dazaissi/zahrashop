@@ -440,7 +440,7 @@ export default function Reports() {
                 <EmptyState icon={<FaChartLine />} title="Belum ada data penjualan" subtitle="Tidak ada transaksi pada periode ini." />
               ) : (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'end', gap: 5, height: 220, padding: '15px 5px 0', overflowX: 'auto', borderBottom: '1px solid var(--border-color)' }}>
+                  <div className="themed-scroll-x" style={{ display: 'flex', alignItems: 'end', gap: 5, height: 220, padding: '15px 5px 0', overflowX: 'auto', borderBottom: '1px solid var(--border-color)' }}>
                     {chartData.map(item => {
                       const height = Math.max((item.omzet / maxChartValue) * 180, 4)
                       const isMax = item.omzet === maxChartValue
