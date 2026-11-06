@@ -1,16 +1,38 @@
-# React + Vite
+# 🌸 Zahra Shop - Invoice & Point of Sales System
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplikasi manajemen toko (POS) berbasis web yang modern, responsif, dan dilengkapi fitur *real-time synchronization*. Dibangun untuk memudahkan pengelolaan invoice, stok barang, pelanggan, keuangan, hingga pencatatan aktivitas karyawan.
 
-Currently, two official plugins are available:
+## ✨ Fitur Utama
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- 🛒 **Manajemen Invoice & POS**: Dukungan pembayaran Cash, QRIS dinamis (DANA), Split Payment, dan Hutang/Tempo.
+- 📦 **Manajemen Produk & Stok**: Dukungan produk fisik dan digital (pulsa, token, dll) dengan sinkronisasi stok real-time.
+- 📊 **Laporan Bisnis**: Analisis omzet, laba kotor, piutang, dan produk terlaris dengan ekspor ke PDF dan CSV.
+- 👥 **Manajemen Pelanggan**: Pencatatan pelanggan, riwayat transaksi, dan fitur *Top 5 Customers*.
+- 💸 **Pencatatan Pengeluaran**: Manajemen biaya operasional dengan filter tanggal dan grafik distribusi.
+- 🔒 **Multi-Role Access**: Pemisahan hak akses antara **Owner** dan **Admin** (dilindungi oleh *Row Level Security* Supabase).
+- 📝 **Activity Logs**: Pencatatan otomatis setiap aktivitas (tambah/edit/hapus) untuk keperluan audit.
+- 🔔 **Realtime Notifikasi**: Pemberitahuan stok menipis dan tagihan jatuh tempo secara *live*.
+- 🔗 **Public Invoice**: Pelanggan dapat melihat invoice melalui link unik tanpa harus login.
+- 💾 **Auto Backup**: Backup database harian otomatis menggunakan GitHub Actions.
 
-## React Compiler
+## 🛠️ Teknologi yang Digunakan
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: [React.js](https://reactjs.org/) (Vite) + [React Router DOM](https://reactrouter.com/)
+- **Styling**: Pure CSS (Glassmorphism Design) + [Framer Motion](https://www.framer.com/motion/)
+- **Database & Auth**: [Supabase](https://supabase.com/) (PostgreSQL, Row Level Security)
+- **State Management**: React Context API
+- **Charts**: [Recharts](https://recharts.org/)
+- **PDF & Excel**: html2pdf.js, xlsx
+- **Deployment**: GitHub Pages
+- **Backup**: GitHub Actions (pg_dump)
 
-## Expanding the Oxlint configuration
+## 🚀 Cara Menjalankan di Lokal
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Prasyarat
+- Node.js versi 18 atau lebih baru.
+- Akun Supabase dan project yang sudah disiapkan.
+
+### 1. Clone Repository
+```bash
+git clone https://github.com/[USERNAME_ANDA]/invoice-app.git
+cd invoice-app
